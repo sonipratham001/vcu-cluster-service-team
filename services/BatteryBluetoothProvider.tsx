@@ -1,7 +1,8 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useEffect, useState } from "react";
 import { BleManager, Device, BleError } from "react-native-ble-plx";
 import { Buffer } from "buffer";
-
+import { USE_MOCK_DATA } from '../src/config';
+import { mockBluetoothData } from './mockBluetoothData';
 // Create Bluetooth Context
 export const BatteryBluetoothContext = createContext<any>(null);
 
@@ -16,6 +17,66 @@ const ERROR_CODES: { [key: number]: string } = {
 export const BatteryBluetoothProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
   const [data, setData] = useState<any>({}); // Holds parsed CAN data
+
+   useEffect(() => {
+  if (USE_MOCK_DATA) {
+    setData(mockBluetoothData); // one-time injection
+    return;
+  }
+}, []);
+useEffect(() => {
+  if (!USE_MOCK_DATA) return;
+
+  const interval = setInterval(() => {
+    setData((prev: any) => {
+      const randomFaults = [
+        "sigFltControllerOverCurrent",
+        "sigFltEEPROMFailure",
+        "sigFltMotorHotCutback",
+        "sigFltThrottlewiperLow",
+      ];
+      const activeFaults = Math.random() > 0.65
+        ? [randomFaults[Math.floor(Math.random() * randomFaults.length)]]
+        : [];
+
+      return {
+        ...prev,
+        messageDIU4: {
+          ...prev.messageDIU4,
+          stateOfCharge: Math.max(
+            0,
+            Math.min(100, (prev.messageDIU4?.stateOfCharge ?? 50) + (Math.random() > 0.5 ? 1 : -1))
+          ),
+        },
+        messageDriveParameters: {
+          ...prev.messageDriveParameters,
+          maxCellTemp: 30 + Math.round(Math.random() * 10),
+          minCellTemp: 20 + Math.round(Math.random() * 5),
+        },
+        messageMCU1: {
+          ...prev.messageMCU1,
+          speed: Math.floor(Math.random() * 100),
+          throttle: Math.floor(Math.random() * 100),
+          brake: Math.floor(Math.random() * 30),
+          rmsCurrent: Math.round(100 + Math.random() * 50),
+        },
+        messageMCU2: {
+          ...prev.messageMCU2,
+          motorRPM: Math.floor(1000 + Math.random() * 4000),
+          odometer: Number((prev.messageMCU2?.odometer ?? 0) + 0.2), // keep float but clean
+        },
+        messageMCU3: {
+          ...prev.messageMCU3,
+          faultMessages: activeFaults.length ? activeFaults : ["No Faults Detected"],
+        },
+      };
+    });
+  }, 1000); // 1 second updates
+
+  return () => clearInterval(interval);
+}, []);
+
+
 
   const connectToDevice = async (device: Device) => {
     try {

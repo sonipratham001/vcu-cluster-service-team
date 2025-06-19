@@ -86,6 +86,8 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+            missingDimensionStrategy 'store', 'play' // ✅ merge this here
+    apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
     }
     signingConfigs {
         debug {
@@ -113,9 +115,10 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
-    defaultConfig {
-        missingDimensionStrategy 'store', 'play' // Force the 'play' flavor for Google Play
-    }
+    // defaultConfig {
+    //     missingDimensionStrategy 'store', 'play' // Force the 'play' flavor for Google Play
+    //     apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
+    // }
 }
 
 dependencies {
@@ -124,9 +127,16 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.9.0')
     implementation 'com.google.firebase:firebase-analytics'
     implementation "com.android.billingclient:billing:6.0.1"
-    implementation project(':react-native-iap')
+    implementation(project(':react-native-iap')) {
+    exclude group: 'com.google.android.gms'
+}
     implementation project(':react-native-vector-icons')
     implementation 'com.google.firebase:firebase-auth:22.2.0' // Use the latest version
+    implementation project(':react-native-orientation-locker')
+    implementation project(':react-native-maps')
+    implementation 'com.google.android.gms:play-services-base:18.2.0'
+implementation 'com.google.android.gms:play-services-maps:18.1.0'
+implementation 'com.google.android.gms:play-services-location:21.0.1' // ✅ latest stable
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
