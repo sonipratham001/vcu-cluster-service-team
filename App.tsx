@@ -12,7 +12,7 @@ import {
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import ImmersiveMode from "react-native-immersive-mode"; // ✅ Correct import
-
+import 'react-native-get-random-values';
 // Screens
 import HomeScreen from "./screens/HomeScreen";
 import DashboardScreen from "./screens/Dashboard";
@@ -36,7 +36,7 @@ import ExportDataScreen from "./screens/ExportData/ ExportDataScreen";
 import { BluetoothProvider } from "./services/BluetoothServices";
 import { BatteryBluetoothProvider } from "./services/BatteryBluetoothProvider";
 import { BluetoothPopupProvider } from "./screens/Context/BluetoothPopupContext";
-
+import { LocationProvider } from './screens/Context/LocationContext';
 // Components
 import BluetoothPopup from "./screens/components/BluetoothPopup";
 import Toast from "react-native-toast-message";
@@ -95,6 +95,7 @@ const App = () => {
       />
 
       <SafeAreaProvider>
+        <LocationProvider>
         <BluetoothProvider>
           <BatteryBluetoothProvider>
             <BluetoothPopupProvider>
@@ -131,6 +132,7 @@ const App = () => {
             </BluetoothPopupProvider>
           </BatteryBluetoothProvider>
         </BluetoothProvider>
+        </LocationProvider>
       </SafeAreaProvider>
     </>
   );

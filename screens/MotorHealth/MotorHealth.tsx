@@ -1,4 +1,3 @@
-// MotorHealth.tsx
 import React, { useContext, useRef, useEffect, useState } from 'react';
 import {
   View,
@@ -7,19 +6,25 @@ import {
   StatusBar,
   Animated,
   Dimensions,
+  Easing,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Path, Line, Circle, Defs, Stop, LinearGradient as SvgLinearGradient, Text as SvgText } from 'react-native-svg';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { BarChart } from 'react-native-gifted-charts';
 import { BatteryBluetoothContext } from '../../services/BatteryBluetoothProvider';
 import BottomNavBar from '../components/BottomNavBar';
 import styles from './MotorHealthStyles';
+import { MOTOR_FAULT_MAPPINGS } from '../../src/utils/faultMappings'; // adjust path if needed
+
 
 const screenWidth = Dimensions.get('window').width;
-const RADIUS = 75;
-const CIRCLE_LENGTH = 2 * Math.PI * RADIUS;
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedText = Animated.createAnimatedComponent(Text);
+
+
+const MAX_RPM = 8000;
+const ARC_LENGTH = 251.2;
 
 const MotorHealth = () => {
   const { data = {} } = useContext(BatteryBluetoothContext);
@@ -29,12 +34,23 @@ const MotorHealth = () => {
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-50)).current;
-  const strokeAnim = useRef(new Animated.Value(0)).current;
-
+  const animatedRpm = useRef(new Animated.Value(0)).current;
   const [rpm, setRpm] = useState(0);
+  const animatedOdometer = useRef(new Animated.Value(Number(mcu2.odometer) || 0)).current;
+const [brakePulse, setBrakePulse] = useState(new Animated.Value(1));
+const [driveModeColor, setDriveModeColor] = useState('#f472b6'); // default pink
+const [odometerDisplay, setOdometerDisplay] = useState((Number(mcu2.odometer) || 0).toFixed(1));
+const animatedBrake = useRef(new Animated.Value(Number(mcu1.brake) || 0)).current;
 
   useEffect(() => {
-    setRpm(mcu2.motorRPM || 0);
+    const newRpm = mcu2.motorRPM || 0;
+    setRpm(newRpm);
+    Animated.timing(animatedRpm, {
+      toValue: newRpm,
+      duration: 800,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
   }, [data]);
 
   useEffect(() => {
@@ -48,127 +64,503 @@ const MotorHealth = () => {
         toValue: 0,
         useNativeDriver: true,
       }),
-      Animated.timing(strokeAnim, {
-        toValue: rpm / 100, // Normalizing to 0–100 range
-        duration: 1000,
-        useNativeDriver: false,
-      }),
     ]).start();
-  }, [rpm]);
+  }, []);
 
-  const strokeDashoffset = strokeAnim.interpolate({
-    inputRange: [0, 100],
-    outputRange: [CIRCLE_LENGTH, 0],
+   useEffect(() => {
+  const odometer = Number(mcu2.odometer) || 0;
+  Animated.timing(animatedOdometer, {
+    toValue: odometer,
+    duration: 800,
+    useNativeDriver: false,
+    easing: Easing.out(Easing.cubic),
+  }).start();
+
+  const listener = animatedOdometer.addListener(({ value }) => {
+    setOdometerDisplay(value.toFixed(1));
   });
 
+  return () => {
+    animatedOdometer.removeListener(listener);
+  };
+}, [mcu2.odometer]);
+
+ useEffect(() => {
+  const brakeValue = Number(mcu1.brake) || 0;
+  if (brakeValue > 70) {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(brakePulse, {
+          toValue: 1.2,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(brakePulse, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  } else {
+    brakePulse.setValue(1); // reset pulse
+  }
+}, [mcu1.brake]);
+
+useEffect(() => {
+  Animated.timing(animatedBrake, {
+    toValue: Number(mcu1.brake) || 0,
+    duration: 800,
+    easing: Easing.out(Easing.cubic),
+    useNativeDriver: false,
+  }).start();
+}, [mcu1.brake]);
+
+useEffect(() => {
+  const mode = mcu1.driveMode;
+  if (mode === 1) setDriveModeColor('#22c55e'); // Eco
+  else if (mode === 2) setDriveModeColor('#3b82f6'); // Normal
+  else if (mode === 3) setDriveModeColor('#ef4444'); // Sport
+  else setDriveModeColor('#f472b6'); // Default fallback
+}, [mcu1.driveMode]);
+
+  const strokeColor = rpm < 2000 ? '#10b981' : rpm < 4000 ? '#facc15' : '#ef4444';
+
+  const getNeedleCoords = (rpmVal: number) => {
+    const angle = Math.PI - (Math.min(rpmVal, MAX_RPM) / MAX_RPM) * Math.PI;
+    const radius = 72;
+    const cx = 100;
+    const cy = 100;
+    return {
+      x2: cx + radius * Math.cos(angle),
+      y2: cy - radius * Math.sin(angle),
+    };
+  };
+
+  const coords = getNeedleCoords(rpm);
+
   const performanceData = [
-    {
-      value: mcu1.speed || 0,
-      label: 'Speed',
-      frontColor: '#60a5fa',
-      gradientColor: '#3b82f6',
-    },
-    {
-      value: mcu1.throttle || 0,
-      label: 'Throttle',
-      frontColor: '#34d399',
-      gradientColor: '#059669',
-    },
-    {
-      value: mcu1.rmsCurrent || 0,
-      label: 'RMS Curr',
-      frontColor: '#f472b6',
-      gradientColor: '#ec4899',
-    },
-  ];
+  {
+    value: mcu1.speed || 0,
+    label: 'Speed',
+    frontColor: 'transparent',
+    gradientColor: '#60a5fa',
+  },
+  {
+    value: mcu1.throttle || 0,
+    label: 'Throttle',
+    frontColor: 'transparent',
+    gradientColor: '#34d399',
+  },
+  {
+    value: mcu1.rmsCurrent || 0,
+    label: 'RMS Curr',
+    frontColor: 'transparent',
+    gradientColor: '#f472b6',
+  },
+];
+
+  const animatedVoltage = useRef(new Animated.Value(0)).current;
+  const animatedBrakeOffset = animatedBrake.interpolate({
+  inputRange: [0, 100],
+  outputRange: [125.6, 0],
+});
+useEffect(() => {
+  const voltage = Math.min(mcu2.capacitorVoltage || 0, 90);
+  Animated.timing(animatedVoltage, {
+    toValue: voltage,
+    duration: 800,
+    useNativeDriver: false,
+  }).start();
+}, [mcu2.capacitorVoltage]);
+
+const ARC_LENGTH = 251.2;
+const ARC_MARGIN = 10;
+const brakeColor = animatedBrake.interpolate({
+  inputRange: [0, 70, 100],
+  outputRange: ['#22c55e', '#facc15', '#ef4444'],
+});
+const glowOpacity = animatedBrake.interpolate({
+  inputRange: [0, 100],
+  outputRange: [0, 0.8],
+});
+const animatedStroke = animatedVoltage.interpolate({
+  inputRange: [0, 90],
+  outputRange: [ARC_LENGTH - ARC_MARGIN, ARC_MARGIN], // [241.2, 10]
+});
 
   return (
-    <LinearGradient
-      colors={['#0a0f1c', '#1f2937', '#111827']}
-      style={styles.container}>
+    <LinearGradient colors={['#0a0f1c', '#1f2937', '#111827']} style={styles.container}>
       <StatusBar barStyle="light-content" />
-
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Circular RPM */}
+
+        {/* RPM Gauge */}
         <Animated.View
-          style={[styles.socRow, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
-        >
-          <View style={styles.svgContainer}>
-            <Svg width={180} height={180} viewBox="0 0 180 180">
-              <Circle
-                cx="90"
-                cy="90"
-                r={RADIUS}
-                stroke="#2d3748"
-                strokeWidth="12"
-                fill="none"
-              />
-              <AnimatedCircle
-                cx="90"
-                cy="90"
-                r={RADIUS}
-                stroke="#f472b6"
-                strokeWidth="12"
-                fill="none"
-                strokeDasharray={`${CIRCLE_LENGTH}, ${CIRCLE_LENGTH}`}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                rotation="-90"
-                origin="90, 90"
-              />
-            </Svg>
-            <Text style={styles.svgText}>{rpm} RPM</Text>
-          </View>
-          <View style={styles.socRight}>
-            <Text style={styles.socText}>{rpm} RPM</Text>
-            <Text style={styles.metricLabel}>Motor RPM</Text>
-          </View>
+          style={{ alignItems: 'center', marginVertical: 30, width: '100%', opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          <Svg width={260} height={140} viewBox="0 0 200 100">
+            <Defs>
+  <SvgLinearGradient id="rpmGradient" x1="0" y1="0" x2="1" y2="0">
+    <Stop offset="0%" stopColor="#facc15" />
+    <Stop offset="100%" stopColor="#ef4444" />
+  </SvgLinearGradient>
+</Defs>
+  {/* Silver Outline Arc */}
+  <Path
+    d="M 20 100 A 80 80 0 0 1 180 100"
+    stroke="silver"
+    strokeWidth="18"
+    fill="none"
+  />
+
+  {/* Background Ring Arc */}
+  <Path d="M 20 100 A 80 80 0 0 1 180 100" stroke="#1e293b" strokeWidth="14" fill="none" />
+
+  {/* Inner Fill */}
+  <Path d="M 28 100 A 72 72 0 0 1 172 100" stroke="#0f172a" strokeWidth="36" fill="none" />
+
+  {/* Animated Foreground Arc */}
+  <AnimatedPath
+    d="M 20 100 A 80 80 0 0 1 180 100"
+    stroke={strokeColor}
+    strokeWidth="14"
+    fill="none"
+    strokeDasharray={`${ARC_LENGTH}`}
+    strokeDashoffset={animatedRpm.interpolate({
+      inputRange: [0, MAX_RPM],
+      outputRange: [ARC_LENGTH - 10, 10], // ✅ Trim ends to stay within arc
+    })}
+    strokeLinecap="round"
+  />
+
+  {/* Needle Line */}
+  <Line
+    x1="100"
+    y1="100"
+    x2={coords.x2}
+    y2={coords.y2}
+    stroke={strokeColor}
+    strokeWidth="3"
+    strokeLinecap="round"
+    strokeDasharray="2,1"
+/>
+
+  {/* Needle Center Dot */}
+  <Circle cx="100" cy="100" r="4" fill={strokeColor} stroke="white" strokeWidth={1} />
+  <SvgText x="38" y="98" fill="#94a3b8" fontSize="12" textAnchor="middle">0</SvgText>
+  <SvgText x="100" y="60" fill="#94a3b8" fontSize="12" textAnchor="middle">4000</SvgText>
+  <SvgText x="168" y="98" fill="#94a3b8" fontSize="12" textAnchor="middle">8000</SvgText>
+</Svg>
+          <AnimatedText style={{
+  color: '#fff',
+  fontSize: 22,
+  fontWeight: 'bold',
+  marginTop: 0,         // ✅ Was -26, now pulled below needle
+  marginBottom: 2,
+  textShadowColor: 'rgba(255,255,255,0.8)',
+  textShadowOffset: { width: 0, height: 0 },
+  textShadowRadius: 6,
+}}>
+  {Math.round(rpm)} RPM
+</AnimatedText>
+<Text style={{ color: '#94a3b8', fontSize: 14 }}>Motor RPM</Text>
         </Animated.View>
 
-        {/* Performance Bar Chart */}
-        <View style={{ marginTop: 30, marginBottom: 20 }}>
-          <BarChart
-            data={performanceData}
-            width={screenWidth - 220}
-            height={130}
-            barWidth={100}
-            noOfSections={5}
-            spacing={30}
-            initialSpacing={10}
-            isAnimated
-            animationDuration={800}
-            yAxisLabelTexts={['0', '20', '40', '60', '80', '100']}
-            yAxisTextStyle={{ color: '#94a3b8' }}
-            xAxisLabelTextStyle={{ color: '#94a3b8' }}
-          />
+        {/* Performance Chart */}
+        {/* Enhanced Performance Chart */}
+<View
+  style={{
+    backgroundColor: 'rgba(15,23,42,0.9)', // futuristic dark blue
+    borderRadius: 6,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    marginHorizontal: 16,
+    marginBottom: 30,
+    shadowColor: '#0ea5e9',
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    borderWidth: 1,
+    borderColor: '#334155',
+    elevation: 4,
+  }}
+>
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+    <Icon name="chart-bar" size={18} color="#0ea5e9" style={{ marginRight: 8 }} />
+    <Text style={{
+      color: '#38bdf8',
+      fontSize: 14,
+      fontWeight: '600',
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+    }}>
+      Performance Metrics
+    </Text>
+  </View>
+
+  <BarChart
+    data={[
+      {
+        value: mcu1.speed || 0,
+        label: 'Speed',
+        frontColor: 'transparent',
+        gradientColor: '#60a5fa',
+      },
+      {
+        value: mcu1.throttle || 0,
+        label: 'Throttle',
+        frontColor: 'transparent',
+        gradientColor: '#34d399',
+      },
+      {
+        value: mcu1.rmsCurrent || 0,
+        label: 'RMS Curr',
+        frontColor: 'transparent',
+        gradientColor: '#f472b6',
+      },
+    ]}
+    barWidth={36}
+    spacing={30}
+    roundedTop={false}
+    height={160}
+    noOfSections={4}
+    yAxisThickness={0}
+    xAxisThickness={0}
+    isAnimated
+    animationDuration={900}
+    barBorderRadius={0}
+    showGradient
+    hideRules={false}
+    rulesColor="rgba(148,163,184,0.1)"
+    rulesType="dotted"
+    yAxisTextStyle={{ color: '#64748b', fontSize: 11 }}
+    xAxisLabelTextStyle={{ color: '#e2e8f0', fontSize: 13, fontWeight: '600' }}
+    showYAxisIndices={false}
+  />
+</View>
+
+        {/* Temps */}
+        <View style={{ marginVertical: 20 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 30 }}>
+  {[
+    ['Controller Temp', mcu1.controllerTemperature, '#f87171'],
+    ['Motor Temp', mcu1.motorTemperature, '#fb923c'],
+  ].map(([label, value, color], idx) => {
+    const temp = Number(value) || 0;
+    return (
+      <View
+        key={idx}
+        style={{
+          alignItems: 'center',
+          marginRight: idx === 0 ? 250 : 0, // Adds gap only after the first item
+        }}>
+        <View style={{
+          width: 100,
+          height: 100,
+          borderRadius: 50,
+          borderWidth: 3,
+          borderColor: 'silver',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#0f172a',
+          shadowColor: '#ffffff',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.1,
+          shadowRadius: 6,
+        }}>
+          <Text style={{ color, fontSize: 20, fontWeight: 'bold' }}>{temp}°C</Text>
+        </View>
+        <Text style={{ color: '#cbd5e1', fontSize: 14, marginTop: 8 }}>{label}</Text>
+      </View>
+    );
+  })}
+</View>
+
+          {/* Capacitor Voltage */}
+          <View style={{ alignItems: 'center', marginBottom: 40 }}>
+  <Svg width={200} height={110} viewBox="0 0 200 100">
+    <Defs>
+      <SvgLinearGradient id="capGradient" x1="0" y1="0" x2="1" y2="0">
+        <Stop offset="0%" stopColor="#06b6d4" />
+        <Stop offset="100%" stopColor="#3b82f6" />
+      </SvgLinearGradient>
+    </Defs>
+
+    {/* Silver Boundary Ring */}
+    <Path
+      d="M 20 100 A 80 80 0 0 1 180 100"
+      stroke="silver"
+      strokeWidth="16"
+      fill="none"
+    />
+
+    {/* Background Arc */}
+    <Path
+      d="M 20 100 A 80 80 0 0 1 180 100"
+      stroke="#1e293b"
+      strokeWidth="12"
+      fill="none"
+    />
+
+    {/* Animated Voltage Arc */}
+    <AnimatedPath
+      d="M 20 100 A 80 80 0 0 1 180 100"
+      stroke="url(#capGradient)"
+      strokeWidth="12"
+      fill="none"
+      strokeDasharray={`${ARC_LENGTH}`}
+      strokeDashoffset={animatedStroke}
+      strokeLinecap="butt"
+    />
+
+    {/* Tick Labels */}
+    <SvgText x="30" y="98" fill="#94a3b8" fontSize="12" textAnchor="start">0</SvgText>
+    <SvgText x="100" y="75" fill="#94a3b8" fontSize="12" textAnchor="middle">45</SvgText>
+    <SvgText x="170" y="98" fill="#94a3b8" fontSize="12" textAnchor="end">90</SvgText>
+  </Svg>
+
+  {/* Voltage Value */}
+  <Text style={{
+    color: '#e0f2fe',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginTop: -10,
+    textShadowColor: 'rgba(255,255,255,0.15)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
+  }}>
+    {mcu2.capacitorVoltage?.toFixed(1)} V
+  </Text>
+
+  {/* Label */}
+  <Text style={{ color: '#60a5fa', fontSize: 16, marginTop: 4 }}>Capacitor Voltage</Text>
+</View>
+
+          {/* Grid Metrics */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 20, marginBottom: 40 }}>
+  {/* Odometer Card */}
+  <View style={{
+    width: 100,
+    backgroundColor: '#0f172a',
+    padding: 10,
+    borderRadius: 14,
+    alignItems: 'center',
+    shadowColor: '#34d399',
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: '#34d399',
+  }}>
+    <Icon name="map-marker-distance" size={60} color="#34d399" />
+    <Text style={styles.metricText}>Odo</Text>
+    <AnimatedText style={{ color: '#34d399', fontSize: 20, fontFamily: 'monospace' }}>
+      {odometerDisplay}
+    </AnimatedText>
+    <Text style={{ color: '#64748b', fontSize: 12 }}>km</Text>
+  </View>
+
+  {/* Brake Card */}
+<Animated.View style={{
+  width: 100,
+  backgroundColor: '#0f172a',
+  padding: 10,
+  borderRadius: 14,
+  alignItems: 'center',
+  transform: [{ scale: brakePulse }],
+  shadowColor: '#facc15',
+  shadowOpacity: 0.3,
+  shadowRadius: 6,
+  borderWidth: 1,
+  borderColor: '#facc15',
+}}>
+  <Svg width={80} height={50} viewBox="0 0 100 50">
+    {/* Background Arc */}
+    <Path
+      d="M 10 50 A 40 40 0 0 1 90 50"
+      stroke="#1e293b"
+      strokeWidth="10"
+      fill="none"
+    />
+    {/* Animated Foreground Arc */}
+    <AnimatedPath
+      d="M 10 50 A 40 40 0 0 1 90 50"
+      stroke={brakeColor}
+      strokeWidth="10"
+      fill="none"
+      strokeDasharray="125.6"
+      strokeDashoffset={animatedBrakeOffset}
+      strokeLinecap="round"
+    />
+  </Svg>
+<Animated.Text style={[styles.metricText, { color: brakeColor }]}>Brake</Animated.Text>
+<Animated.Text style={{ fontWeight: 'bold', fontSize: 20, color: brakeColor }}>
+  {Number(mcu1.brake) || 0}%
+</Animated.Text>
+</Animated.View>
+
+  {/* Drive Mode Card */}
+  <View style={{
+    width: 100,
+    backgroundColor: '#0f172a',
+    padding: 10,
+    borderRadius: 14,
+    alignItems: 'center',
+    shadowColor: driveModeColor,
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: driveModeColor,
+  }}>
+    <Icon name="steering" size={60} color={driveModeColor} />
+    <Text style={styles.metricText}>Mode</Text>
+    <Text style={{ color: driveModeColor, fontWeight: 'bold', fontSize: 20 }}>
+      {mcu1.driveMode || '--'}
+    </Text>
+  </View>
+</View>
         </View>
 
-        {/* Metrics Grid */}
-        <View style={styles.gridContainer}>
-          {[
-            ['thermometer', 'Controller Temp', mcu1.controllerTemperature, '°C', '#f87171'],
-            ['fire', 'Motor Temp', mcu1.motorTemperature, '°C', '#fb923c'],
-            ['battery-charging', 'Capacitor V', mcu2.capacitorVoltage, 'V', '#60a5fa'],
-            ['map-marker-distance', 'Odometer', mcu2.odometer, 'km', '#34d399'],
-            ['car-brake-abs', 'Brake', mcu1.brake, '%', '#facc15'],
-            ['steering', 'Drive Mode', mcu1.driveMode, '', '#f472b6'],
-          ].map(([icon, label, val, unit, color], idx) => (
-            <View key={idx} style={styles.gridItem}>
-              <Icon name={icon as string} size={32} color={color as string} />
-              <Text style={styles.metricText}>{label}</Text>
-              <Text style={styles.metricValue}>{val} {unit}</Text>
-            </View>
-          ))}
-        </View>
+        <View style={{ marginHorizontal: 20, marginBottom: 40 }}>
+  <Text style={{ color: '#e2e8f0', fontSize: 18, fontWeight: 'bold', marginBottom: 12,  textAlign: 'center', }}>
+    Motor Faults
+  </Text>
 
-        {/* Faults */}
-        <View style={styles.faultContainer}>
-          {(mcu3.faultMessages || ['No Faults']).map((fault: string, idx: number) => (
-            <Text key={idx} style={styles.faultText}>• {fault}</Text>
-          ))}
-        </View>
+  {(mcu3.faultMessages || ['NoFaultsDetected']).map((faultKey: string, idx: number) => {
+    const fault = MOTOR_FAULT_MAPPINGS[faultKey] || {
+      label: faultKey,
+      icon: 'alert-circle-outline',
+      severity: 'warning',
+    };
+
+    const color =
+      fault.severity === 'critical'
+        ? '#ef4444'
+        : fault.severity === 'warning'
+        ? '#facc15'
+        : '#10b981';
+
+    return (
+      <View
+        key={idx}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: '#1e293b',
+          borderRadius: 12,
+          padding: 12,
+          marginBottom: 10,
+          borderLeftWidth: 4,
+          borderLeftColor: color,
+          shadowColor: color,
+          shadowOpacity: 0.2,
+          shadowRadius: 4,
+        }}
+      >
+        <Icon name={fault.icon} size={28} color={color} style={{ marginRight: 12 }} />
+        <Text style={{ color: '#f1f5f9', fontSize: 15 }}>{fault.label}</Text>
+      </View>
+    );
+  })}
+</View>
       </ScrollView>
-
       <BottomNavBar />
     </LinearGradient>
   );
