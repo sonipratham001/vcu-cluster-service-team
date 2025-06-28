@@ -154,15 +154,18 @@ useEffect(() => {
         case "14498250": // Msg_DriveParameters
           if (payload.length < 8) return { error: "Invalid Msg_DriveParameters Data" };
           return { messageDriveParameters: parseMsgDriveParameters(payload) };
-        case "01171040": // MCU1 (18265040 dec)
+         case "18265040": // MCU1 (18265040 dec)
           if (payload.length < 8) return { error: "Invalid MCU1 Data" };
           return { messageMCU1: parseMsgMCU1(payload) };
-        case "01174040": // MCU2 (18275040 dec)
+        case "18275040": // MCU2 (18275040 dec)
           if (payload.length < 8) return { error: "Invalid MCU2 Data" };
           return { messageMCU2: parseMsgMCU2(payload) };
-        case "0117D040": // MCU3 (18305040 dec)
+        case "18305040": // MCU3 (18305040 dec)
           if (payload.length < 8) return { error: "Invalid MCU3 Data" };
           return { messageMCU3: parseMsgMCU3(payload) };
+          case "FEED0001": // GPIO Status
+  if (payload.length < 2) return { error: "Invalid GPIO Data" };
+  return { gpioStates: parseGPIOMsg(payload) };
         default:
           console.warn("Unknown Message ID:", messageID);
           return { error: "Unknown Message ID", messageID };
@@ -301,11 +304,32 @@ useEffect(() => {
     signals.forEach((s) => {
       if (extractBits(buffer, s.startBit, s.size)) faults.push(s.name);
     });
+
+    
     return {
       messageType: "Controller Faults",
       faultMessages: faults.length ? faults : ["No Faults Detected"],
     };
   };
+
+  const parseGPIOMsg = (buffer: Buffer) => {
+  if (buffer.length < 2) return { error: "Invalid GPIO Data" };
+  const high = buffer[0];
+  const low = buffer[1];
+  const bitfield = (high << 8) | low;
+
+  const pinNames = [
+    "REV_OUT", "FWD_OUT", "KEY_OUT", "BRAKE_OUT", "LOWB_OUT", "HIGHB_OUT",
+    "LEFT_OUT", "RIGHT_OUT", "SPORTS_OUT", "ECO_OUT", "NEUTRAL_OUT"
+  ];
+
+  const states: { [key: string]: boolean } = {};
+  pinNames.forEach((name, index) => {
+    states[name] = (bitfield & (1 << index)) !== 0;
+  });
+
+  return { messageType: "GPIO", states };
+};
 
   return (
     <BatteryBluetoothContext.Provider value={{ connectedDevice, connectToDevice, disconnectDevice, data }}>

@@ -84,14 +84,14 @@ const VehicleDashboardUI: React.FC<VehicleDashboardUIProps> = ({
           <View style={styles.container}>
             {/* Turn Signals Row */}
             <View style={styles.topRow}>
-              <Animated.View style={{ opacity: blinkAnim }}>
-                <Icon name="arrow-left-bold" size={36} color="#facc15" />
-              </Animated.View>
-              <Text style={styles.timeText}>{time || '--:--'}</Text>
-              <Animated.View style={{ opacity: blinkAnim }}>
-                <Icon name="arrow-right-bold" size={36} color="#facc15" />
-              </Animated.View>
-            </View>
+  <Animated.View style={{ opacity: turnSignal === 'left' ? blinkAnim : 1 }}>
+    <Icon name="arrow-left-bold" size={36} color="#facc15" />
+  </Animated.View>
+  <Text style={styles.timeText}>{time || '--:--'}</Text>
+  <Animated.View style={{ opacity: turnSignal === 'right' ? blinkAnim : 1 }}>
+    <Icon name="arrow-right-bold" size={36} color="#facc15" />
+  </Animated.View>
+</View>
 
             {/* Headlights, Hazard, Low Beam */}
             <View style={styles.topStatusRow}>

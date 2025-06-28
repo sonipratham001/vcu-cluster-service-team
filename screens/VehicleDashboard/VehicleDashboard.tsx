@@ -9,7 +9,7 @@ const VehicleDashboard = () => {
   const { data: batteryData, connectedDevice: batteryConnected } = useContext(BatteryBluetoothContext);
   const { connectedDevice: bldcConnected } = useContext(BluetoothContext);
   const [time, setTime] = useState(new Date().toLocaleTimeString());
-  const [isBluetoothPopupVisible, setBluetoothPopupVisible] = useState(false); // 👈 Bluetooth popup state
+  const [isBluetoothPopupVisible, setBluetoothPopupVisible] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -27,10 +27,12 @@ const VehicleDashboard = () => {
   const diu4 = batteryData.messageDIU4 || {};
   const diu2 = batteryData.messageDIU2 || {};
   const driveParams = batteryData.messageDriveParameters || {};
+  const gpio = batteryData.gpioStates?.states || {};
 
   let gear: 'f' | 'n' | 'r' = 'n';
-  if (mcu1.driveMode === 2) gear = 'f';
-  else if (mcu1.driveMode === 3) gear = 'r';
+  if (gpio.FWD_OUT) gear = 'f';
+  else if (gpio.REV_OUT) gear = 'r';
+  else if (gpio.NEUTRAL_OUT) gear = 'n';
 
   return (
     <SafeAreaView style={styles.fullScreen}>
@@ -39,19 +41,27 @@ const VehicleDashboard = () => {
         time={time}
         batteryPercentage={diu4.stateOfCharge}
         gear={gear}
-        mode={mcu1.driveMode === 1 ? 'eco' : 'sports'}
+        mode={gpio.ECO_OUT ? 'eco' : gpio.SPORTS_OUT ? 'sports' : undefined}
         range={diu4.distanceToEmpty}
         odometer={batteryData.messageMCU2?.odometer}
-        turnSignal={null}
+        turnSignal={
+          gpio.LEFT_OUT ? 'left' :
+          gpio.RIGHT_OUT ? 'right' :
+          null
+        }
         brakeStatus={{
-          bf: !!mcu1.brake,
+          bf: !!gpio.BRAKE_OUT,
           hb: false,
           s: false,
         }}
+        headlightStatus={{
+          low: gpio.LOWB_OUT,
+          high: gpio.HIGHB_OUT,
+          hazard: false,
+          service: false,
+        }}
         isConnected={!!(batteryConnected || bldcConnected)}
       />
-
-      
     </SafeAreaView>
   );
 };

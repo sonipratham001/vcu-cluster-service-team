@@ -46,7 +46,7 @@ const ExportDataScreen = () => {
         controllerFaults: messageMCU3.faultMessages?.join(', ') || 'None',
       };
       setRecordedData(prev => [...prev, newData]);
-    }, 1000);
+    }, 10);
 
     return () => clearInterval(intervalId);
   }, [data]);

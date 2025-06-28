@@ -41,6 +41,8 @@ import { LocationProvider } from './screens/Context/LocationContext';
 import BluetoothPopup from "./screens/components/BluetoothPopup";
 import Toast from "react-native-toast-message";
 
+import { enableScreens } from 'react-native-screens';
+enableScreens();
 // Stack type
 export type RootStackParamList = {
   Login: undefined;
@@ -104,8 +106,9 @@ const App = () => {
                   screenOptions={{
                     headerShown: false,
                     gestureEnabled: true,
-                    animation: 'fade',
+                    animation: 'slide_from_right',
                     animationDuration: 300,
+                    contentStyle: { backgroundColor: '#000' }, // ✅ ADD THIS
                   }}
                 >
                   <Stack.Screen name="Home" component={HomeScreen} />

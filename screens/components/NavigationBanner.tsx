@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -35,6 +35,8 @@ const NavigationBanner: React.FC<Props> = ({
   nextDirectionType,
 }) => {
   const slideAnim = useRef(new Animated.Value(-100)).current;
+  const lastSpeakTimeRef = useRef<number>(0);
+  const [muted, setMuted] = useState(false);
 
   useEffect(() => {
     Animated.timing(slideAnim, {
@@ -42,15 +44,33 @@ const NavigationBanner: React.FC<Props> = ({
       duration: 400,
       useNativeDriver: false,
     }).start();
-  }, [instruction]);
+
+    const now = Date.now();
+    if (!muted && instruction && now - lastSpeakTimeRef.current > 5000) {
+      Tts.stop();
+      Tts.speak(instruction);
+      lastSpeakTimeRef.current = now;
+    }
+  }, [instruction, muted]);
+
+  const toggleMute = () => {
+    if (muted) {
+      // Unmuting
+      setMuted(false);
+    } else {
+      // Muting and stopping any current instruction
+      setMuted(true);
+      Tts.stop();
+    }
+  };
 
   return (
     <Animated.View style={[styles.banner, { top: slideAnim }]}>
       <View style={styles.mainInstruction}>
         <Icon name={getIcon(directionType)} size={32} color="#fff" style={{ marginRight: 12 }} />
         <Text style={styles.instruction} numberOfLines={1}>{instruction}</Text>
-        <TouchableOpacity onPress={() => Tts.speak(instruction)}>
-          <Icon name="volume-up" size={26} color="#fff" />
+        <TouchableOpacity onPress={toggleMute}>
+          <Icon name={muted ? 'volume-off' : 'volume-up'} size={26} color="#fff" />
         </TouchableOpacity>
       </View>
 
@@ -75,7 +95,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     zIndex: 10000,
     elevation: 6,
-    width: width * 0.85, // responsive width
+    width: width * 0.85,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,

@@ -57,7 +57,10 @@ const MapScreen = () => {
 const SMOOTHING_ALPHA = 0.1; // Tunable
 const navBannerAnim = useRef(new Animated.Value(0)).current;
 const [searchText, setSearchText] = useState('');
-
+    const lastRerouteTime = useRef(0); // declare once
+    const [isRerouting, setIsRerouting] = useState(false);
+const rerouteAnim = useRef(new Animated.Value(0)).current;
+const [currentZoom, setCurrentZoom] = useState(18);
 
   useEffect(() => {
     Tts.setDefaultLanguage('en-US');
@@ -115,6 +118,12 @@ const handleClearRoute = () => {
 const clearSearch = () => {
   searchRef.current?.setAddressText?.('');
   setSearchText('');
+  setDestination(null); // Clear the selected destination
+  setRouteCoords([]); // Remove route polyline
+  setRouteSummary(null); // Clear route summary box
+  if (userRegion && mapRef.current) {
+    mapRef.current.animateToRegion(userRegion, 800);
+  }
 };
  const updateDynamicRouteSummary = async (latitude: number, longitude: number) => {
   const now = Date.now();
@@ -187,7 +196,25 @@ const clearSearch = () => {
     if (lower.includes('u-turn')) return 'uturn';
     return 'straight';
   };
+  
+  const showReroutingBanner = () => {
+  setIsRerouting(true);
+  Animated.timing(rerouteAnim, {
+    toValue: 1,
+    duration: 300,
+    useNativeDriver: true,
+  }).start();
 
+  setTimeout(() => {
+    Animated.timing(rerouteAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setIsRerouting(false);
+    });
+  }, 2000); // show for 2 seconds
+};
   const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -282,6 +309,7 @@ setRouteSummary({ duration, distance, eta });
   };
 
   const handleStartJourney = async () => {
+
     Animated.timing(navBannerAnim, {
   toValue: 1,
   duration: 400,
@@ -311,89 +339,101 @@ setRouteSummary({ duration, distance, eta });
       }
 
       const id = Geolocation.watchPosition(
-        (position) => {
-          const { latitude, longitude } = smoothLocation(position.coords.latitude, position.coords.longitude);
-          const newRegion = {
-            latitude,
-            longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          };
+  (position) => {
+    const { latitude, longitude } = smoothLocation(position.coords.latitude, position.coords.longitude);
+    const newRegion = {
+      latitude,
+      longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    };
 
-          console.log('📍 Tracking location:', latitude, longitude);
-          setUserRegion(newRegion);
-          if (!cameraInitialized.current) {
-  // First-time setup with smooth intro
-  mapRef.current?.animateCamera({
-    center: newRegion,
-    pitch: 60,
-    heading: position.coords.heading || 0,
-    zoom: 18,
-  }, { duration: 800 });
+    console.log('📍 Tracking location:', latitude, longitude);
+    setUserRegion(newRegion);
 
-  cameraInitialized.current = true;
-  prevUserCoords.current = { latitude, longitude }; // store initial point
-} else {
-  const prevCoords = prevUserCoords.current;
-  const distanceMoved = prevCoords
-    ? getDistanceFromLatLonInKm(latitude, longitude, prevCoords.latitude, prevCoords.longitude) * 1000
-    : 0;
+    if (!cameraInitialized.current) {
+      mapRef.current?.animateCamera({
+        center: newRegion,
+        pitch: 60,
+        heading: position.coords.heading || 0,
+        zoom: 18, // ✅ Zoom in initially
+      }, { duration: 800 });
 
-  if (distanceMoved > 10) {
-    prevUserCoords.current = { latitude, longitude };
-   setUserHeading(position.coords.heading || 0);
-    mapRef.current?.animateCamera({
-      center: newRegion,
-      heading: position.coords.heading || 0,
-    }, { duration: 300 });
+      cameraInitialized.current = true;
+      prevUserCoords.current = { latitude, longitude };
+    } else {
+      const prevCoords = prevUserCoords.current;
+      const distanceMoved = prevCoords
+        ? getDistanceFromLatLonInKm(latitude, longitude, prevCoords.latitude, prevCoords.longitude) * 1000
+        : 0;
 
-    updateDynamicRouteSummary(latitude, longitude);
+      if (distanceMoved > 10) {
+        prevUserCoords.current = { latitude, longitude };
+        setUserHeading(position.coords.heading || 0);
+        mapRef.current?.animateCamera({
+          center: newRegion,
+          heading: position.coords.heading || 0,
+          zoom: currentZoom, // ✅ Keep zoom tight on updates
+        }, { duration: 300 });
+
+        updateDynamicRouteSummary(latitude, longitude);
+      }
+    }
+
+    if (stepInstructions.length > 0 && currentStepIndex < stepInstructions.length) {
+      const currentStep = stepInstructions[currentStepIndex];
+      const { lat, lng } = currentStep.end_location;
+      const distance = getDistanceFromLatLonInKm(latitude, longitude, lat, lng) * 1000;
+
+      // ✅ Re-routing logic
+      const distanceFromStep = getDistanceFromLatLonInKm(latitude, longitude, lat, lng) * 1000;
+      if (distanceFromStep > 50 && Date.now() - lastRerouteTime.current > 10000) {
+        console.log('🔁 User is off-route — rerouting...');
+        lastRerouteTime.current = Date.now();
+        showReroutingBanner(); // 👈 Add this line
+  handleShowRoute();    
+        setCurrentStepIndex(0);
+        return;
+      }
+
+      // 🔇 Avoid double-speaking
+      if (
+        currentStepIndex === prevIndexRef.current &&
+        Date.now() - lastInstructionTime.current < 5000
+      ) {
+        return;
+      }
+
+      if (distance < 30) {
+        const instruction = currentStep.html_instructions.replace(/<[^>]*>?/gm, '');
+        Tts.speak(instruction);
+        lastInstructionTime.current = Date.now();
+        prevIndexRef.current = currentStepIndex;
+        setCurrentStepIndex(prev => prev + 1);
+      }
+
+      if (currentStepIndex >= stepInstructions.length) {
+        Tts.speak("You have reached your destination.");
+        stopJourney();
+        return;
+      }
+    }
+  },
+  (error) => {
+    console.error('❌ Tracking error:', error.message);
+    setErrorMsg('Location tracking failed: ' + error.message);
+  },
+  {
+    enableHighAccuracy: true,
+    distanceFilter: 10,
+    interval: 3000,
+    fastestInterval: 2000,
+    forceRequestLocation: true,
+    showLocationDialog: true,
   }
-}
+);
 
-          if (stepInstructions.length > 0 && currentStepIndex < stepInstructions.length) {
-            const currentStep = stepInstructions[currentStepIndex];
-            const { lat, lng } = currentStep.end_location;
-            const distance = getDistanceFromLatLonInKm(latitude, longitude, lat, lng) * 1000;
-       
-            if (
-  currentStepIndex === prevIndexRef.current && 
-  Date.now() - lastInstructionTime.current < 5000
-) {
-  return; // Prevent repeat within 5 seconds
-}
-
-if (distance < 30) {
-  const instruction = currentStep.html_instructions.replace(/<[^>]*>?/gm, '');
-
-  Tts.speak(instruction);
-  lastInstructionTime.current = Date.now(); // Track when spoken
-  prevIndexRef.current = currentStepIndex;
-  setCurrentStepIndex(prev => prev + 1);
-}
-
-            if (currentStepIndex >= stepInstructions.length) {
-  Tts.speak("You have reached your destination.");
-  stopJourney();
-  return;
-}
-          }
-        },
-        (error) => {
-          console.error('❌ Tracking error:', error.message);
-          setErrorMsg('Location tracking failed: ' + error.message);
-        },
-        {
-          enableHighAccuracy: true,
-          distanceFilter: 10,
-          interval: 3000,
-          fastestInterval: 2000,
-          forceRequestLocation: true,
-          showLocationDialog: true,
-        }
-      );
-
-      setWatchId(id);
+setWatchId(id);
     } catch (err) {
       console.error('🚨 Unexpected error:', err);
       setErrorMsg('Something went wrong while starting the journey.');
@@ -428,12 +468,44 @@ if (distance < 30) {
   lastInstructionTime.current = 0;
   lastETAUpdateTime.current = 0;
 };
+const handleZoomIn = () => {
+  const newZoom = Math.min(currentZoom + 1, 20);
+  setCurrentZoom(newZoom);
+  mapRef.current?.animateCamera({ zoom: newZoom }, { duration: 300 });
+};
 
+const handleZoomOut = () => {
+  const newZoom = Math.max(currentZoom - 1, 5);
+  setCurrentZoom(newZoom);
+  mapRef.current?.animateCamera({ zoom: newZoom }, { duration: 300 });
+};
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <LinearGradient colors={['#0a0f1c', '#1f2937', '#111827']} style={styles.container}>
         <StatusBar barStyle="light-content" />
-    
+    {isRerouting && (
+  <Animated.View
+    style={{
+      position: 'absolute',
+      top: 30,
+      alignSelf: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      backgroundColor: '#333',
+      borderRadius: 8,
+      zIndex: 99999,
+      opacity: rerouteAnim,
+      transform: [{
+        translateY: rerouteAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [-20, 0],
+        }),
+      }],
+    }}
+  >
+    <Text style={{ color: '#fff', fontWeight: 'bold' }}>🔁 Rerouting...</Text>
+  </Animated.View>
+)}
     {!isJourneyStarted && (
         <Animated.View style={[styles.searchWrapper, { transform: [{ translateY }] }]}>
           <GooglePlacesAutocomplete
@@ -600,22 +672,38 @@ if (distance < 30) {
       elevation: 5,
     }}
     onPress={() => {
-      if (userRegion && mapRef.current) {
-        mapRef.current.animateCamera(
-          {
-            center: userRegion,
-            heading: userHeading,
-            pitch: 60,
-            zoom: 18,
-          },
-          { duration: 800 }
-        );
-      }
-    }}
+  if (userRegion && mapRef.current) {
+    mapRef.current.animateCamera(
+      {
+        center: userRegion,
+        heading: userHeading,
+        pitch: 60,
+        zoom: currentZoom, // ✅ respect current zoom
+      },
+      { duration: 800 }
+    );
+  }
+}}
   >
     <Icon name="my-location" size={24} color="#333" />
   </TouchableOpacity>
+{isJourneyStarted && (
+  <>
+    <TouchableOpacity
+      style={[styles.zoomButton, { bottom: 140 }]}
+      onPress={handleZoomIn}
+    >
+      <Text style={styles.zoomText}>+</Text>
+    </TouchableOpacity>
 
+    <TouchableOpacity
+      style={[styles.zoomButton, { bottom: 80 }]}
+      onPress={handleZoomOut}
+    >
+      <Text style={styles.zoomText}>−</Text>
+    </TouchableOpacity>
+  </>
+)}
           {destination && !isJourneyStarted && (
   <View style={styles.controlsWrapper}>
     <TouchableOpacity style={styles.buttonDirections} onPress={handleShowRoute}>
@@ -794,6 +882,23 @@ summaryText: {
   color: '#fff',
   fontSize: 16,
   fontWeight: '600',
+},
+zoomButton: {
+  position: 'absolute',
+  right: 20,
+  backgroundColor: '#000',
+  width: 42,
+  height: 42,
+  borderRadius: 8,
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 10000,
+  elevation: 6,
+},
+zoomText: {
+  color: '#fff',
+  fontSize: 24,
+  fontWeight: 'bold',
 },
 });
 

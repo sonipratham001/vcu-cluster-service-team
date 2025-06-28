@@ -323,13 +323,13 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
     data={[
       {
         value: batteryMetrics.batteryCurrent,
-        label: 'Battery Current',
+        label: 'Current',
         frontColor: 'transparent',
         gradientColor: '#4ade80', // green
       },
       {
         value: batteryMetrics.availableEnergy,
-        label: 'Energy Avail',
+        label: 'Energy',
         frontColor: 'transparent',
         gradientColor: '#60a5fa', // blue
       },
