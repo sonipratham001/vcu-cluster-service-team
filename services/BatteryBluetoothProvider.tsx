@@ -1,7 +1,7 @@
 import React, { createContext, useEffect, useState } from "react";
 import { BleManager, Device, BleError } from "react-native-ble-plx";
 import { Buffer } from "buffer";
-import { USE_MOCK_DATA } from '../src/config';
+import { USE_MOCK_DATA, USE_GPIO_TEST_MODE } from '../src/config';
 import { mockBluetoothData } from './mockBluetoothData';
 // Create Bluetooth Context
 export const BatteryBluetoothContext = createContext<any>(null);
@@ -25,53 +25,79 @@ export const BatteryBluetoothProvider: React.FC<{ children: React.ReactNode }> =
   }
 }, []);
 useEffect(() => {
-  if (!USE_MOCK_DATA) return;
+  if (!USE_MOCK_DATA && !USE_GPIO_TEST_MODE) return;
 
   const interval = setInterval(() => {
     setData((prev: any) => {
-      const randomFaults = [
-        "sigFltControllerOverCurrent",
-        "sigFltEEPROMFailure",
-        "sigFltMotorHotCutback",
-        "sigFltThrottlewiperLow",
-      ];
-      const activeFaults = Math.random() > 0.65
-        ? [randomFaults[Math.floor(Math.random() * randomFaults.length)]]
-        : [];
+      const updatedData: any = { ...prev };
 
-      return {
-        ...prev,
-        messageDIU4: {
+      if (USE_MOCK_DATA) {
+        const randomFaults = [
+          "sigFltControllerOverCurrent",
+          "sigFltEEPROMFailure",
+          "sigFltMotorHotCutback",
+          "sigFltThrottlewiperLow",
+        ];
+        const activeFaults = Math.random() > 0.65
+          ? [randomFaults[Math.floor(Math.random() * randomFaults.length)]]
+          : [];
+
+        updatedData.messageDIU4 = {
           ...prev.messageDIU4,
           stateOfCharge: Math.max(
             0,
             Math.min(100, (prev.messageDIU4?.stateOfCharge ?? 50) + (Math.random() > 0.5 ? 1 : -1))
           ),
-        },
-        messageDriveParameters: {
+        };
+
+        updatedData.messageDriveParameters = {
           ...prev.messageDriveParameters,
           maxCellTemp: 30 + Math.round(Math.random() * 10),
           minCellTemp: 20 + Math.round(Math.random() * 5),
-        },
-        messageMCU1: {
+        };
+
+        updatedData.messageMCU1 = {
           ...prev.messageMCU1,
           speed: Math.floor(Math.random() * 100),
           throttle: Math.floor(Math.random() * 100),
           brake: Math.floor(Math.random() * 30),
           rmsCurrent: Math.round(100 + Math.random() * 50),
-        },
-        messageMCU2: {
+        };
+
+        updatedData.messageMCU2 = {
           ...prev.messageMCU2,
           motorRPM: Math.floor(1000 + Math.random() * 4000),
-          odometer: Number((prev.messageMCU2?.odometer ?? 0) + 0.2), // keep float but clean
-        },
-        messageMCU3: {
+          odometer: Number((prev.messageMCU2?.odometer ?? 0) + 0.2),
+        };
+
+        updatedData.messageMCU3 = {
           ...prev.messageMCU3,
           faultMessages: activeFaults.length ? activeFaults : ["No Faults Detected"],
-        },
-      };
+        };
+      }
+
+      if (USE_GPIO_TEST_MODE) {
+        updatedData.gpioStates = {
+          messageType: "GPIO",
+          states: {
+            REV_OUT: false,
+            FWD_OUT: true,
+            KEY_OUT: true,
+            BRAKE_OUT: true,
+            LOWB_OUT: false,
+            HIGHB_OUT: true,
+            LEFT_OUT: Math.random() > 0.5,
+            RIGHT_OUT: Math.random() > 0.5,
+            SPORTS_OUT: Math.random() > 0.5,
+            ECO_OUT: Math.random() > 0.5,
+            NEUTRAL_OUT: false,
+          },
+        };
+      }
+
+      return updatedData;
     });
-  }, 1000); // 1 second updates
+  }, 1000);
 
   return () => clearInterval(interval);
 }, []);
@@ -94,6 +120,10 @@ useEffect(() => {
         }
         if (characteristic?.value) {
           const decodedData = parseBluetoothData(characteristic.value);
+
+          if (decodedData?.gpioStates?.states) {
+  console.log("🧪 [BLE] GPIO states updated in context:", decodedData.gpioStates.states);
+}
           setData((prevData: any) => ({ ...prevData, ...decodedData }));
         }
       });
@@ -163,9 +193,16 @@ useEffect(() => {
         case "18305040": // MCU3 (18305040 dec)
           if (payload.length < 8) return { error: "Invalid MCU3 Data" };
           return { messageMCU3: parseMsgMCU3(payload) };
-          case "FEED0001": // GPIO Status
-  if (payload.length < 2) return { error: "Invalid GPIO Data" };
-  return { gpioStates: parseGPIOMsg(payload) };
+          case "FEED0001":
+  console.log("📥 [BLE] GPIO message received");
+  if (payload.length < 2) {
+    console.error("❌ [BLE] GPIO payload too short:", payload.length);
+    return { error: "Invalid GPIO Data" };
+  }
+
+  const parsedGPIO = parseGPIOMsg(payload);
+  console.log("✅ [BLE] Final GPIO State Map:", parsedGPIO.states);
+  return { gpioStates: parsedGPIO };
         default:
           console.warn("Unknown Message ID:", messageID);
           return { error: "Unknown Message ID", messageID };
@@ -313,10 +350,18 @@ useEffect(() => {
   };
 
   const parseGPIOMsg = (buffer: Buffer) => {
-  if (buffer.length < 2) return { error: "Invalid GPIO Data" };
+  if (buffer.length < 2) {
+    console.error("❌ Invalid GPIO payload length:", buffer.length);
+    return { error: "Invalid GPIO Data" };
+  }
+
   const high = buffer[0];
   const low = buffer[1];
   const bitfield = (high << 8) | low;
+
+  console.log("🧮 [GPIO] Raw Bytes → High:", high, "Low:", low);
+  console.log("🔢 [GPIO] Bitfield (binary):", bitfield.toString(2).padStart(16, '0'));
+  console.log("🔍 [GPIO] Decoded States:");
 
   const pinNames = [
     "REV_OUT", "FWD_OUT", "KEY_OUT", "BRAKE_OUT", "LOWB_OUT", "HIGHB_OUT",
@@ -325,7 +370,9 @@ useEffect(() => {
 
   const states: { [key: string]: boolean } = {};
   pinNames.forEach((name, index) => {
-    states[name] = (bitfield & (1 << index)) !== 0;
+    const isActive = (bitfield & (1 << index)) !== 0;
+    states[name] = isActive;
+    console.log(`➡️  ${name}: ${isActive ? "ON ✅" : "OFF ❌"}`);
   });
 
   return { messageType: "GPIO", states };

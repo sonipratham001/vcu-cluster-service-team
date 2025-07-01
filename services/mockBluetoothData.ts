@@ -59,4 +59,20 @@ export const mockBluetoothData = {
     messageType: "Controller Faults",
     faultMessages: ["sigFltEncoder", "sigFltMotorHotCutback"],
   },
+  gpioStates: {
+    messageType: "GPIO",
+    states: {
+      REV_OUT: false,
+      FWD_OUT: true,
+      KEY_OUT: true,
+      BRAKE_OUT: true,
+      LOWB_OUT: true,
+      HIGHB_OUT: false,
+      LEFT_OUT: true,
+      RIGHT_OUT: false,
+      SPORTS_OUT: false,
+      ECO_OUT: true,
+      NEUTRAL_OUT: false,
+    },
+  },
 };
