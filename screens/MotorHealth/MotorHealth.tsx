@@ -19,7 +19,8 @@ import { MOTOR_FAULT_MAPPINGS } from '../../src/utils/faultMappings'; // adjust 
 
 
 const screenWidth = Dimensions.get('window').width;
-const AnimatedPath = Animated.createAnimatedComponent(Path);
+const contentWidth = 320 + 140; // 320 for bar chart card, ~140 for metrics block
+const horizontalMargin = (screenWidth - contentWidth) / 2;const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedText = Animated.createAnimatedComponent(Text);
 
 
@@ -198,27 +199,31 @@ const animatedStroke = animatedVoltage.interpolate({
         <Animated.View
           style={{ alignItems: 'center', marginVertical: 30, width: '100%', opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           <Svg width={260} height={140} viewBox="0 0 200 100">
-            <Defs>
-  <SvgLinearGradient id="rpmGradient" x1="0" y1="0" x2="1" y2="0">
-    <Stop offset="0%" stopColor="#facc15" />
-    <Stop offset="100%" stopColor="#ef4444" />
-  </SvgLinearGradient>
-</Defs>
-  {/* Silver Outline Arc */}
+  <Defs>
+    <SvgLinearGradient id="rpmGradient" x1="0" y1="0" x2="1" y2="0">
+      <Stop offset="0%" stopColor="#facc15" />
+      <Stop offset="100%" stopColor="#ef4444" />
+    </SvgLinearGradient>
+  </Defs>
+
+  {/* 1. Inner Fill FIRST (so it goes in the back) */}
   <Path
-    d="M 20 100 A 80 80 0 0 1 180 100"
-    stroke="silver"
-    strokeWidth="18"
+    d="M 28 100 A 72 72 0 0 1 172 100"
+    stroke="#0f172a"
+    strokeWidth="36"
     fill="none"
   />
 
-  {/* Background Ring Arc */}
-  <Path d="M 20 100 A 80 80 0 0 1 180 100" stroke="#1e293b" strokeWidth="14" fill="none" />
+  {/* 2. Middle Background Arc */}
+  <Path
+    d="M 20 100 A 80 80 0 0 1 180 100"
+    stroke="#334155"
+    strokeWidth="14"
+    fill="none"
+    opacity={1} // full opacity to make sure it's visible
+  />
 
-  {/* Inner Fill */}
-  <Path d="M 28 100 A 72 72 0 0 1 172 100" stroke="#0f172a" strokeWidth="36" fill="none" />
-
-  {/* Animated Foreground Arc */}
+  {/* 3. Animated Foreground Arc */}
   <AnimatedPath
     d="M 20 100 A 80 80 0 0 1 180 100"
     stroke={strokeColor}
@@ -227,12 +232,20 @@ const animatedStroke = animatedVoltage.interpolate({
     strokeDasharray={`${ARC_LENGTH}`}
     strokeDashoffset={animatedRpm.interpolate({
       inputRange: [0, MAX_RPM],
-      outputRange: [ARC_LENGTH - 10, 10], // ✅ Trim ends to stay within arc
+      outputRange: [ARC_LENGTH - 10, 10],
     })}
     strokeLinecap="round"
   />
 
-  {/* Needle Line */}
+  {/* 4. Silver Outline Arc (always on top) */}
+  <Path
+  d="M 20 100 A 80 80 0 0 1 180 100" // match all other arc paths
+  stroke="silver"
+  strokeWidth="2.5" // slightly wider than 2 for visibility
+  fill="none"
+/>
+
+  {/* 5. Needle */}
   <Line
     x1="100"
     y1="100"
@@ -242,13 +255,13 @@ const animatedStroke = animatedVoltage.interpolate({
     strokeWidth="3"
     strokeLinecap="round"
     strokeDasharray="2,1"
-/>
-
-  {/* Needle Center Dot */}
+  />
   <Circle cx="100" cy="100" r="4" fill={strokeColor} stroke="white" strokeWidth={1} />
+
+  {/* 6. Labels */}
   <SvgText x="38" y="98" fill="#94a3b8" fontSize="12" textAnchor="middle">0</SvgText>
   <SvgText x="100" y="60" fill="#94a3b8" fontSize="12" textAnchor="middle">4000</SvgText>
-  <SvgText x="168" y="98" fill="#94a3b8" fontSize="12" textAnchor="middle">8000</SvgText>
+  <SvgText x="162" y="98" fill="#94a3b8" fontSize="12" textAnchor="middle">8000</SvgText>
 </Svg>
           <AnimatedText style={{
   color: '#fff',
@@ -267,74 +280,134 @@ const animatedStroke = animatedVoltage.interpolate({
 
         {/* Performance Chart */}
         {/* Enhanced Performance Chart */}
-<View
-  style={{
-    backgroundColor: 'rgba(15,23,42,0.9)', // futuristic dark blue
-    borderRadius: 6,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    marginHorizontal: 16,
-    marginBottom: 30,
-    shadowColor: '#0ea5e9',
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    borderWidth: 1,
-    borderColor: '#334155',
-    elevation: 4,
-  }}
->
-  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-    <Icon name="chart-bar" size={18} color="#0ea5e9" style={{ marginRight: 8 }} />
-    <Text style={{
-      color: '#38bdf8',
-      fontSize: 14,
-      fontWeight: '600',
-      letterSpacing: 1,
-      textTransform: 'uppercase',
-    }}>
-      Performance Metrics
+<View style={{ alignItems: 'center', marginBottom: 30 }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+  {/* Performance Metrics Card */}
+  <View
+    style={{
+      backgroundColor: 'rgba(15,23,42,0.9)',
+      borderRadius: 6,
+      paddingVertical: 16,
+      paddingHorizontal: 12,
+      // flex: 1, // Allow it to take available space
+      marginRight: 12,
+      shadowColor: '#0ea5e9',
+      shadowOpacity: 0.4,
+      shadowRadius: 14,
+      width: 320, // ✅ Reduced fixed width
+      borderWidth: 1,
+      borderColor: '#334155',
+      elevation: 4,
+    }}
+  >
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+      <Icon name="chart-bar" size={18} color="#0ea5e9" style={{ marginRight: 8 }} />
+      <Text
+        style={{
+          color: '#38bdf8',
+          fontSize: 14,
+          fontWeight: '600',
+          letterSpacing: 1,
+          textTransform: 'uppercase',
+        }}
+      >
+        Performance Metrics
+      </Text>
+    </View>
+
+    {/* Bar Chart */}
+    <BarChart
+      data={[
+        {
+          value: mcu1.speed || 0,
+          label: 'Speed',
+          frontColor: 'transparent',
+          gradientColor: '#60a5fa',
+        },
+        {
+          value: mcu1.throttle || 0,
+          label: 'Throttle',
+          frontColor: 'transparent',
+          gradientColor: '#34d399',
+        },
+        {
+          value: mcu1.rmsCurrent || 0,
+          label: 'RMS Curr',
+          frontColor: 'transparent',
+          gradientColor: '#f472b6',
+        },
+      ]}
+      barWidth={50}
+      spacing={30}
+      roundedTop={false}
+      height={160}
+      noOfSections={4}
+      yAxisThickness={0}
+      xAxisThickness={0}
+      isAnimated
+      animationDuration={900}
+      barBorderRadius={0}
+      showGradient
+      hideRules={false}
+      rulesColor="rgba(148,163,184,0.1)"
+      rulesType="dotted"
+      yAxisTextStyle={{ color: '#64748b', fontSize: 11 }}
+      xAxisLabelTextStyle={{ color: '#e2e8f0', fontSize: 13, fontWeight: '600' }}
+      showYAxisIndices={false}
+    />
+  </View>
+
+  {/* Parameter Display Box */}
+  <View style={{ marginVertical: 70, gap: 12 }}>
+  {/* Speed Box */}
+  <View
+    style={{
+      borderWidth: 2,
+      borderColor: 'silver',
+      borderRadius: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      backgroundColor: '#0f172a',
+    }}
+  >
+    <Text style={{ color: '#60a5fa', fontSize: 15, fontWeight: 'bold' }}>
+      Speed: {mcu1.speed || 0} km/h
     </Text>
   </View>
 
-  <BarChart
-    data={[
-      {
-        value: mcu1.speed || 0,
-        label: 'Speed',
-        frontColor: 'transparent',
-        gradientColor: '#60a5fa',
-      },
-      {
-        value: mcu1.throttle || 0,
-        label: 'Throttle',
-        frontColor: 'transparent',
-        gradientColor: '#34d399',
-      },
-      {
-        value: mcu1.rmsCurrent || 0,
-        label: 'RMS Curr',
-        frontColor: 'transparent',
-        gradientColor: '#f472b6',
-      },
-    ]}
-    barWidth={36}
-    spacing={30}
-    roundedTop={false}
-    height={160}
-    noOfSections={4}
-    yAxisThickness={0}
-    xAxisThickness={0}
-    isAnimated
-    animationDuration={900}
-    barBorderRadius={0}
-    showGradient
-    hideRules={false}
-    rulesColor="rgba(148,163,184,0.1)"
-    rulesType="dotted"
-    yAxisTextStyle={{ color: '#64748b', fontSize: 11 }}
-    xAxisLabelTextStyle={{ color: '#e2e8f0', fontSize: 13, fontWeight: '600' }}
-    showYAxisIndices={false}
-  />
+  {/* Throttle Box */}
+  <View
+    style={{
+      borderWidth: 2,
+      borderColor: 'silver',
+      borderRadius: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      backgroundColor: '#0f172a',
+    }}
+  >
+    <Text style={{ color: '#34d399', fontSize: 15, fontWeight: 'bold' }}>
+      Throttle: {mcu1.throttle || 0} %
+    </Text>
+  </View>
+
+  {/* RMS Current Box */}
+  <View
+    style={{
+      borderWidth: 2,
+      borderColor: 'silver',
+      borderRadius: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      backgroundColor: '#0f172a',
+    }}
+  >
+    <Text style={{ color: '#f472b6', fontSize: 15, fontWeight: 'bold' }}>
+      RMS Current: {mcu1.rmsCurrent || 0} A
+    </Text>
+  </View>
+</View>
+</View>
 </View>
 
         {/* Temps */}

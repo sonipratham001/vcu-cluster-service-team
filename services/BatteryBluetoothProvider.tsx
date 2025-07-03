@@ -318,9 +318,9 @@ useEffect(() => {
   };
 
   const parseMsgMCU2 = (buffer: Buffer) => {
-    const sigMotorRPM = buffer.readUInt16LE(0); // Unsigned, start 0, factor 1, little-endian
-    const sigCapacitorVoltage = buffer.readUInt16LE(2) * 0.1; // Unsigned, start 16, factor 0.1, little-endian
-    const sigOdometer = ((buffer.readUInt8(4) << 16) | (buffer.readUInt8(5) << 8) | buffer.readUInt8(6)) * 0.1; // Unsigned, start 32, 24-bit, factor 0.1, little-endian
+    const sigMotorRPM = buffer.readUInt16LE(0); // 0|16@1+ (1,0)
+  const sigCapacitorVoltage = buffer.readUInt16LE(2) * 0.1; // 16|16@1+ (0.1,0)
+  const sigOdometer = buffer.readUInt32LE(4) * 0.1; // 32|32@1+ (0.1,0)
 
     return {
       messageType: "Motor Parameters",

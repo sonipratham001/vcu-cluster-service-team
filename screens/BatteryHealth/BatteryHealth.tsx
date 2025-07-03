@@ -176,10 +176,8 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
   <View
   style={{
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    width: 180, // Match SVG width
+    height: 180, // Match SVG height
     alignItems: 'center',
     justifyContent: 'center',
   }}
@@ -289,69 +287,109 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
   ))}
 </View>
 
-        <View
-  style={{
-    backgroundColor: 'rgba(15,23,42,0.9)', // dark futuristic container
-    borderRadius: 10,
-    paddingVertical: 18,
-    paddingHorizontal: 14,
-    marginHorizontal: 16,
-    marginTop: 30,
-    marginBottom: 30,
-    shadowColor: '#0ea5e9',
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
-    elevation: 6,
-  }}
->
-  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-    <Icon name="battery-charging" size={20} color="#0ea5e9" style={{ marginRight: 8 }} />
-    <Text style={{
-      color: '#38bdf8',
-      fontSize: 14,
-      fontWeight: '600',
-      letterSpacing: 1,
-      textTransform: 'uppercase',
-    }}>
-      Battery Load Metrics
-    </Text>
-  </View>
+        <View style={{ width: '100%', alignItems: 'center', marginBottom: 30, marginTop: 30 }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+    {/* Battery Load Metrics Card */}
+    <View
+      style={{
+        backgroundColor: 'rgba(15,23,42,0.9)',
+        borderRadius: 10,
+        paddingVertical: 18,
+        paddingHorizontal: 14,
+        marginRight: 16,
+        shadowColor: '#0ea5e9',
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+        borderWidth: 1,
+        borderColor: '#334155',
+        elevation: 6,
+        width: 280,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+        <Icon name="battery-charging" size={20} color="#0ea5e9" style={{ marginRight: 8 }} />
+        <Text style={{
+          color: '#38bdf8',
+          fontSize: 14,
+          fontWeight: '600',
+          letterSpacing: 1,
+          textTransform: 'uppercase',
+        }}>
+          Battery Load Metrics
+        </Text>
+      </View>
 
-  <BarChart
-    data={[
-      {
-        value: batteryMetrics.batteryCurrent,
-        label: 'Current',
-        frontColor: 'transparent',
-        gradientColor: '#4ade80', // green
-      },
-      {
-        value: batteryMetrics.availableEnergy,
-        label: 'Energy',
-        frontColor: 'transparent',
-        gradientColor: '#60a5fa', // blue
-      },
-    ]}
-    barWidth={36}
-    spacing={40}
-    height={160}
-    roundedTop={false}
-    noOfSections={4}
-    showGradient
-    isAnimated
-    animationDuration={800}
-    yAxisThickness={0}
-    xAxisThickness={0}
-    barBorderRadius={8}
-    hideRules={false}
-    rulesColor="rgba(148,163,184,0.08)"
-    rulesType="dotted"
-    yAxisTextStyle={{ color: '#64748b', fontSize: 11 }}
-    xAxisLabelTextStyle={{ color: '#e2e8f0', fontSize: 13, fontWeight: '600' }}
-    showYAxisIndices={false}
-  />
+      {/* Battery Bar Chart */}
+      <BarChart
+        data={[
+          {
+            value: batteryMetrics.batteryCurrent,
+            label: 'Current',
+            frontColor: 'transparent',
+            gradientColor: '#4ade80', // green
+          },
+          {
+            value: batteryMetrics.availableEnergy,
+            label: 'Energy',
+            frontColor: 'transparent',
+            gradientColor: '#60a5fa', // blue
+          },
+        ]}
+        barWidth={36}
+        spacing={40}
+        height={160}
+        roundedTop={false}
+        noOfSections={4}
+        showGradient
+        isAnimated
+        animationDuration={800}
+        yAxisThickness={0}
+        xAxisThickness={0}
+        barBorderRadius={8}
+        hideRules={false}
+        rulesColor="rgba(148,163,184,0.08)"
+        rulesType="dotted"
+        yAxisTextStyle={{ color: '#64748b', fontSize: 11 }}
+        xAxisLabelTextStyle={{ color: '#e2e8f0', fontSize: 13, fontWeight: '600' }}
+        showYAxisIndices={false}
+      />
+    </View>
+
+    {/* Parameter Display Box */}
+    <View style={{ marginVertical: 70, gap: 12 }}>
+      {/* Battery Current Box */}
+      <View
+        style={{
+          borderWidth: 2,
+          borderColor: 'silver',
+          borderRadius: 8,
+          paddingVertical: 10,
+          paddingHorizontal: 14,
+          backgroundColor: '#0f172a',
+        }}
+      >
+        <Text style={{ color: '#4ade80', fontSize: 15, fontWeight: 'bold' }}>
+          Current: {batteryMetrics.batteryCurrent || 0} A
+        </Text>
+      </View>
+
+      {/* Available Energy Box */}
+      <View
+        style={{
+          borderWidth: 2,
+          borderColor: 'silver',
+          borderRadius: 8,
+          paddingVertical: 10,
+          paddingHorizontal: 14,
+          backgroundColor: '#0f172a',
+        }}
+      >
+        <Text style={{ color: '#60a5fa', fontSize: 15, fontWeight: 'bold' }}>
+          Energy: {batteryMetrics.availableEnergy || 0} Wh
+        </Text>
+      </View>
+    </View>
+  </View>
 </View>
 
         {/* Grid Metrics */}

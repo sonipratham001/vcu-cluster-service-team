@@ -17,7 +17,8 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-
+    <uses-feature android:name="android.hardware.usb.host" />
+<uses-permission android:name="android.permission.USB_PERMISSION" />
     <!-- Bluetooth LE Feature -->
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 
