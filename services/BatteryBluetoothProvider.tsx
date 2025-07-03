@@ -113,20 +113,25 @@ useEffect(() => {
       const serviceUUID = "7E400001-B5A3-F393-E0A9-E50E24DCCA9E";
       const characteristicUUID = "7E400002-B5A3-F393-E0A9-E50E24DCCA9E";
 
-      device.monitorCharacteristicForService(serviceUUID, characteristicUUID, (error: BleError | null, characteristic) => {
-        if (error) {
-          console.error("❌ Bluetooth Read Error:", error.message);
-          return;
-        }
-        if (characteristic?.value) {
-          const decodedData = parseBluetoothData(characteristic.value);
+      device.monitorCharacteristicForService(serviceUUID, characteristicUUID, (error, characteristic) => {
+  if (error) {
+    console.error("❌ Bluetooth Read Error:", error.message);
+    return;
+  }
 
-          if (decodedData?.gpioStates?.states) {
-  console.log("🧪 [BLE] GPIO states updated in context:", decodedData.gpioStates.states);
-}
-          setData((prevData: any) => ({ ...prevData, ...decodedData }));
-        }
-      });
+  if (characteristic?.value) {
+    const base64Val = characteristic.value;
+    console.log("📦 [BLE] Raw base64 BLE value:", base64Val);
+
+    const decodedData = parseBluetoothData(base64Val);
+
+    if (decodedData?.gpioStates?.states) {
+      console.log("🧪 [BLE] GPIO states updated in context:", decodedData.gpioStates.states);
+    }
+
+    setData((prevData: any) => ({ ...prevData, ...decodedData }));
+  }
+});
     } catch (error) {
       console.error("Connection Error:", error);
     }
@@ -160,10 +165,17 @@ useEffect(() => {
   const parseBluetoothData = (rawData: string) => {
     try {
       const buffer = Buffer.from(rawData, "base64");
-      if (buffer.length < 8) return { error: "Insufficient data" };
+     if (buffer.length < 4) {
+      console.error("❌ [BLE] Incomplete packet - buffer too short:", buffer.length);
+      return { error: "BLE packet too short" };
+    }
 
-      const messageID = buffer.readUInt32BE(0).toString(16).padStart(8, "0").toUpperCase();
-      const payload = buffer.slice(4);
+    const messageID = buffer.readUInt32BE(0).toString(16).padStart(8, "0").toUpperCase();
+    const payload = buffer.slice(4); // May be 0–8 bytes
+
+    console.log("📨 [BLE] Parsed Message ID:", messageID);
+    console.log("📦 [BLE] Raw hex buffer:", buffer.toString("hex"));
+    console.log("📏 [BLE] Payload length:", payload.length);
 
       switch (messageID) {
         case "1038FF50": // Msg_DIU1
