@@ -38,13 +38,13 @@ const BottomNavBar: React.FC = () => {
         </TouchableOpacity>
 
         {/* Center Logo */}
-        <View style={styles.logoContainer}>
+        {/* <View style={styles.logoContainer}>
           <Image
             source={require('../../assets/intuteLogo.png')}
             style={styles.logo}
             resizeMode="contain"
           />
-        </View>
+        </View> */}
 
         {/* Home Icon */}
         <TouchableOpacity onPress={() => navigation.navigate('Home')}>
@@ -72,18 +72,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingVertical: 10,
-    backgroundColor: '#111827',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     width: '100%',
     position: 'relative',
-  },
-  logoContainer: {
-    position: 'absolute',
-    alignSelf: 'center',
-    bottom: 0, // Centered vertically in navbar
-  },
-  logo: {
-    width: 120,
-    height: 50,
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, {useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -6,16 +6,17 @@ import {
   Animated,
   SafeAreaView,
   Image,
-  Dimensions 
+  Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import GearSelector from '../components/GearSelector';
 import BatteryIndicator from '../components/BatteryIndicator';
-import CurvedPartitionLines from '../components/CurvedPartitionLines';
 import BottomNavBar from '../components/BottomNavBar';
 import LinearGradient from 'react-native-linear-gradient';
+import BlueGlow from '../components/BlueGlow';
+import RedOuterBorder from '../components/DesignLines';
 
-const { width, height } = Dimensions.get('window');
+const {width, height} = Dimensions.get('window');
 
 interface VehicleDashboardUIProps {
   speed?: number;
@@ -69,7 +70,7 @@ const VehicleDashboardUI: React.FC<VehicleDashboardUIProps> = ({
             duration: 400,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
     } else {
       blinkAnim.setValue(1);
@@ -77,50 +78,65 @@ const VehicleDashboardUI: React.FC<VehicleDashboardUIProps> = ({
   }, [turnSignal]);
 
   return (
-    <LinearGradient colors={['#0a0f1c', '#1f2937', '#111827']} style={{ flex: 1 }}>
-      <SafeAreaView style={{ flex: 1 }}>
+    <LinearGradient
+      colors={['#0a0f1c', '#1f2937', '#111827']}
+      style={{flex: 1}}>
+      <SafeAreaView style={{flex: 1}}>
         <View style={styles.scrollContainer}>
-          <CurvedPartitionLines />
+          {/* <CurvedPartitionLines /> */}
+          <RedOuterBorder />
+          <BlueGlow />
           <View style={styles.container}>
             {/* Turn Signals Row */}
             <View style={styles.topRow}>
-  <Animated.View style={{ opacity: turnSignal === 'left' ? blinkAnim : 1 }}>
-    <Icon name="arrow-left-bold" size={36} color="#facc15" />
-  </Animated.View>
-  <Text style={styles.timeText}>{time || '--:--'}</Text>
-  <Animated.View style={{ opacity: turnSignal === 'right' ? blinkAnim : 1 }}>
-    <Icon name="arrow-right-bold" size={36} color="#facc15" />
-  </Animated.View>
-</View>
+              <Animated.View style={{opacity: blinkAnim}}>
+                <Icon name="arrow-left-bold" size={48} color="#facc15" />
+              </Animated.View>
+              <Text style={styles.timeText}>{time || '--:--'}</Text>
+              <Animated.View style={{opacity: blinkAnim}}>
+                <Icon name="arrow-right-bold" size={48} color="#facc15" />
+              </Animated.View>
+            </View>
+
+            {/* Intute.ai Logo */}
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../../assets/intuteLogo.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
 
             {/* Headlights, Hazard, Low Beam */}
             <View style={styles.topStatusRow}>
               <Icon
                 name="car-light-high"
-                size={28}
+                size={38}
                 color={headlightStatus?.high ? '#3b82f6' : '#1e293b'}
+                style={{transform: [{translateY: -45}]}}
               />
-              <View style={styles.iconBox}>
-                <Icon name="hazard-lights" size={30} color="red" />
-              </View>
               <Icon
                 name="car-light-dimmed"
-                size={28}
+                size={38}
                 color={headlightStatus?.low ? '#3b82f6' : '#1e293b'}
+                style={{transform: [{translateY: -45}]}}
               />
             </View>
 
             {/* Gear & Battery Info */}
             <View style={styles.cornerInfoRow}>
-  <View style={styles.leftSide}>
-    <GearSelector gear={gear ?? 'n'} />
-  </View>
+              <View style={styles.leftSide}>
+                <GearSelector gear={gear ?? 'n'} />
+              </View>
 
-  <View style={styles.rightSide}>
-    <BatteryIndicator level={batteryPercentage ?? 0} horizontal={false} />
-    <Text style={styles.value}>{batteryPercentage ?? '--'}%</Text>
-  </View>
-</View>
+              <View style={styles.rightSide}>
+                <BatteryIndicator
+                  level={batteryPercentage ?? 0}
+                  horizontal={false}
+                />
+                <Text style={styles.value}>{batteryPercentage ?? '--'}%</Text>
+              </View>
+            </View>
 
             {/* Speed */}
             <View style={styles.speedContainer}>
@@ -130,16 +146,24 @@ const VehicleDashboardUI: React.FC<VehicleDashboardUIProps> = ({
 
             {/* ECO & SPORTS Row */}
             <View style={styles.modeRow}>
-              <View style={[styles.iconBox, { alignItems: 'center' }]}>
+              <View style={[styles.iconBox, {alignItems: 'center'}]}>
                 <Icon name="leaf" size={36} color="#10b981" />
-                <Text style={[styles.modeText, mode === 'eco' && styles.activeEcoText]}>
+                <Text
+                  style={[
+                    styles.modeText,
+                    mode === 'eco' && styles.activeEcoText,
+                  ]}>
                   ECO
                 </Text>
               </View>
               <View style={styles.modeBlock}>
-                <View style={[styles.iconBox, { alignItems: 'center' }]}>
+                <View style={[styles.iconBox, {alignItems: 'center'}]}>
                   <Icon name="lightning-bolt" size={36} color="#f43f5e" />
-                  <Text style={[styles.modeText, mode === 'sports' && styles.activeSportText]}>
+                  <Text
+                    style={[
+                      styles.modeText,
+                      mode === 'sports' && styles.activeSportText,
+                    ]}>
                     SPORTS
                   </Text>
                 </View>
@@ -149,35 +173,51 @@ const VehicleDashboardUI: React.FC<VehicleDashboardUIProps> = ({
             {/* Range & Odometer Row */}
             <View style={styles.metricsRow}>
               <View style={styles.metricBoxLeft}>
-  <Icon name="map-marker-distance" size={36} color="#60a5fa" />
-  <View style={{ alignItems: 'center' }}>
-    <Text style={styles.metricText}>Range</Text>
-    <Text style={styles.metricText}>{range ?? '--'} km</Text>
-  </View>
-</View>
+                <Icon name="map-marker-distance" size={36} color="#60a5fa" />
+                <View style={{alignItems: 'center'}}>
+                  <Text style={styles.metricText}>Range</Text>
+                  <Text style={styles.metricText}>{range ?? '--'} km</Text>
+                </View>
+              </View>
 
-<View style={styles.metricBoxRight}>
-  <Icon name="speedometer" size={36} color="#60a5fa" />
-  <View style={{ alignItems: 'center' }}>
-    <Text style={styles.metricText}>Odo</Text>
-    <Text style={styles.metricText}>
-  {odometer ? odometer.toFixed(1) : '--'} km
-</Text>
-  </View>
-</View>
+              <View style={styles.metricBoxRight}>
+                <Icon name="speedometer" size={36} color="#60a5fa" />
+                <View style={{alignItems: 'center'}}>
+                  <Text style={styles.metricText}>Odo</Text>
+                  <Text style={styles.metricText}>
+                    {odometer ? odometer.toFixed(1) : '--'} km
+                  </Text>
+                </View>
+              </View>
             </View>
 
             {/* Vertical Status Column */}
             <View style={styles.verticalStatusColumn}>
               <Icon name="car-brake-parking" size={24} color="#f87171" />
-              <Icon name="car-brake-fluid-level" size={24} color={brakeStatus?.bf ? '#f87171' : '#6b7280'} />
-              <Icon name="car-brake-hold" size={24} color={brakeStatus?.hb ? '#f87171' : '#6b7280'} />
-              <Icon name="car-brake-alert" size={24} color={brakeStatus?.s ? '#f87171' : '#6b7280'} />
-              <Icon name="wrench-clock" size={24} color={headlightStatus?.service ? '#f87171' : '#6b7280'} />
+              <Icon
+                name="car-brake-fluid-level"
+                size={24}
+                color={brakeStatus?.bf ? '#f87171' : '#6b7280'}
+              />
+              <Icon
+                name="car-brake-hold"
+                size={24}
+                color={brakeStatus?.hb ? '#f87171' : '#6b7280'}
+              />
+              <Icon
+                name="car-brake-alert"
+                size={24}
+                color={brakeStatus?.s ? '#f87171' : '#6b7280'}
+              />
+              <Icon
+                name="wrench-clock"
+                size={24}
+                color={headlightStatus?.service ? '#f87171' : '#6b7280'}
+              />
             </View>
           </View>
         </View>
-        
+
         <BottomNavBar />
       </SafeAreaView>
     </LinearGradient>
@@ -186,7 +226,7 @@ const VehicleDashboardUI: React.FC<VehicleDashboardUIProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    padding: 12,
+    padding: 2,
     paddingBottom: 0,
   },
   scrollContainer: {
@@ -198,33 +238,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginBottom: 4,
   },
   timeText: {
+    marginTop: 5,
     fontSize: 18,
     color: '#fff',
   },
   topStatusRow: {
     flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 144,
   },
   cornerInfoRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  width: '100%',
-  paddingHorizontal: width * 0.1,
-  marginTop: height * 0.02, // relative top spacing
-},
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: width * 0.1,
+    marginTop: height * 0.02,
+  },
 
-leftSide: {
-  alignItems: 'flex-start',
-},
+  leftSide: {
+    alignItems: 'flex-start',
+    transform: [{translateY: -30}],
+  },
 
-rightSide: {
-  alignItems: 'flex-end',
-},
+  rightSide: {
+    alignItems: 'flex-end',
+    transform: [{translateY: -30}],
+  },
   value: {
     fontSize: 14,
     color: '#fff',
@@ -232,16 +275,16 @@ rightSide: {
     marginTop: 2,
   },
   speedContainer: {
-  alignItems: 'center',
-  marginTop: -80, // was -50 or less (move closer to CurvedPartitionLines)
-},
+    alignItems: 'center',
+    marginTop: -140,
+  },
   speedText: {
-    fontSize: 48,
+    fontSize: 68,
     fontWeight: 'bold',
     color: '#fff',
   },
   kmph: {
-    fontSize: 14,
+    fontSize: 18,
     color: '#ccc',
   },
   modeRow: {
@@ -268,29 +311,29 @@ rightSide: {
     color: '#f43f5e',
   },
   metricsRow: {
-  position: 'absolute',
-  bottom: 15, // place it just above BottomNavBar (adjust if needed)
-  width: '100%',
-  flexDirection: 'row',
-  justifyContent: 'space-around',
-  paddingHorizontal: 0,
-},
+    position: 'absolute',
+    bottom: 15, 
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: -60,
+  },
   metricBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
   metricBoxLeft: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  transform: [{ translateX: -50 }], // shift right (closer to center)
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    transform: [{translateX: -90}], 
+  },
 
-metricBoxRight: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  transform: [{ translateX: 38 }], // shift left (closer to center)
-},
+  metricBoxRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    transform: [{translateX: 115}], 
+  },
   metricText: {
     fontSize: 18,
     color: '#e5e7eb',
@@ -305,10 +348,19 @@ metricBoxRight: {
   iconBox: {
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderRadius: 8,
-    padding: 10,
-    marginHorizontal: 2,
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 40,
+    marginHorizontal: 6,
     backgroundColor: 'transparent',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  logo: {
+    width: 200,
+    height: 60,
   },
 });
 
