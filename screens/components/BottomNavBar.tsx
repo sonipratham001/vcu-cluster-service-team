@@ -52,7 +52,7 @@ const BottomNavBar: React.FC = () => {
         </TouchableOpacity>
 
         {/* Map Icon - Opens external map app */}
-        <TouchableOpacity onPress={openMapsApp}>
+        <TouchableOpacity onPress={() => navigation.navigate('Map')}>
           <Icon name="map-marker" size={28} color="#3b82f6" />
         </TouchableOpacity>
       </View>

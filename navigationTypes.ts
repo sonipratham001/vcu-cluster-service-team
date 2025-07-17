@@ -14,6 +14,7 @@ export type RootStackParamList = {
   BatteryDashboard: undefined;
   VerifyEmail: undefined;
   MenuScreen: undefined;
+  Map: undefined;
 };
 
 export type LoginScreenProps = NativeStackScreenProps<RootStackParamList, "Login">;
@@ -29,4 +30,5 @@ export type ForgotPasswordProps = NativeStackScreenProps<RootStackParamList, "Fo
 export type BatteryDashboardProps = NativeStackScreenProps<RootStackParamList, "BatteryDashboard">;
 export type VerifyEmailProps = NativeStackScreenProps<RootStackParamList, "VerifyEmail">;
 export type MenuScreenProps = NativeStackScreenProps<RootStackParamList, "MenuScreen">;
+export type MapScreenProps = NativeStackScreenProps<RootStackParamList, "Map">;
 

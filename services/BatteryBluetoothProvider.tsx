@@ -353,7 +353,7 @@ const rawFrame = {
 
   const parseMsgMCU2 = (buffer: Buffer) => {
     const sigMotorRPM = buffer.readUInt16LE(0); // 0|16@1+ (1,0)
-  const sigCapacitorVoltage = buffer.readUInt16LE(2) * 0.1; // 16|16@1+ (0.1,0)
+  const sigCapacitorVoltage = buffer.readUInt16LE(2); // 16|16@1+ (0.1,0)
   const sigOdometer = buffer.readUInt32LE(4) * 0.1; // 32|32@1+ (0.1,0)
 
     return {

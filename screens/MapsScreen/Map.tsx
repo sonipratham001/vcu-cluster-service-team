@@ -14,7 +14,8 @@ import {
   TouchableWithoutFeedback,
   PermissionsAndroid,
 } from 'react-native';
-import MapView, { Marker, Region, Polyline } from 'react-native-maps';
+import MapView, { Marker, Region, Polyline, AnimatedRegion} from 'react-native-maps';
+import { Animated as RNAnimated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import BottomNavBar from '../components/BottomNavBar';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
@@ -30,6 +31,14 @@ const GOOGLE_MAPS_API_KEY = 'AIzaSyBXfOOUN_nGASNdGB9yrcBiXgR0xIvm_4g';
 const MapScreen = () => {
   const { location, error, isLoading } = useLocation();
   const [userRegion, setUserRegion] = useState<Region | null>(null);
+  const markerPosition = useRef(
+  new AnimatedRegion({
+    latitude: location?.latitude || 0,
+    longitude: location?.longitude || 0,
+    latitudeDelta: 0.001,
+    longitudeDelta: 0.001,
+  })
+).current;
   const [destination, setDestination] = useState<Region | null>(null);
   const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([]);
   const [routeSummary, setRouteSummary] = useState<{
@@ -52,15 +61,23 @@ const MapScreen = () => {
   const prevUserCoords = useRef<{ latitude: number; longitude: number } | null>(null);
   const lastInstructionTime = useRef<number>(0);
   const smoothedCoords = useRef<{ latitude: number; longitude: number } | null>(null);
-  const [userHeading, setUserHeading] = useState<number>(0);
+  const userHeading = useRef(new Animated.Value(0)).current;
   const lastETAUpdateTime = useRef<number>(0);
-const SMOOTHING_ALPHA = 0.1; // Tunable
+const SMOOTHING_ALPHA = 0.3; // Tunable
 const navBannerAnim = useRef(new Animated.Value(0)).current;
 const [searchText, setSearchText] = useState('');
     const lastRerouteTime = useRef(0); // declare once
     const [isRerouting, setIsRerouting] = useState(false);
 const rerouteAnim = useRef(new Animated.Value(0)).current;
 const [currentZoom, setCurrentZoom] = useState(18);
+const AnimatedMarker = RNAnimated.createAnimatedComponent(Marker);
+const lastMarkerCoords = useRef<{ latitude: number; longitude: number }>({
+  latitude: location?.latitude || 0,
+  longitude: location?.longitude || 0,
+});
+const lastMarkerUpdateTime = useRef<number>(0); // Add this to your refs
+const MARKER_UPDATE_INTERVAL = 1000; // Minimum 1 second between marker updates
+const isAnimating = useRef(false);
 
   useEffect(() => {
     Tts.setDefaultLanguage('en-US');
@@ -89,12 +106,26 @@ const [currentZoom, setCurrentZoom] = useState(18);
   }, []);
 
   const smoothLocation = (newLat: number, newLng: number) => {
+  const DEADZONE_METERS = 5;
+
   if (!smoothedCoords.current) {
     smoothedCoords.current = { latitude: newLat, longitude: newLng };
-  } else {
-    smoothedCoords.current.latitude += SMOOTHING_ALPHA * (newLat - smoothedCoords.current.latitude);
-    smoothedCoords.current.longitude += SMOOTHING_ALPHA * (newLng - smoothedCoords.current.longitude);
   }
+
+  const distanceMoved = getDistanceFromLatLonInKm(
+    smoothedCoords.current.latitude,
+    smoothedCoords.current.longitude,
+    newLat,
+    newLng
+  ) * 1000;
+
+  if (distanceMoved < DEADZONE_METERS) {
+    // 🧊 Within jitter deadzone — ignore tiny movements
+    return smoothedCoords.current;
+  }
+
+  smoothedCoords.current.latitude += SMOOTHING_ALPHA * (newLat - smoothedCoords.current.latitude);
+  smoothedCoords.current.longitude += SMOOTHING_ALPHA * (newLng - smoothedCoords.current.longitude);
 
   return {
     latitude: smoothedCoords.current.latitude,
@@ -349,7 +380,49 @@ setRouteSummary({ duration, distance, eta });
     };
 
     console.log('📍 Tracking location:', latitude, longitude);
-    setUserRegion(newRegion);
+   const markerDistance = getDistanceFromLatLonInKm(
+  lastMarkerCoords.current.latitude,
+  lastMarkerCoords.current.longitude,
+  latitude,
+  longitude
+) * 1000;
+
+const MARKER_DISTANCE_THRESHOLD = 10;
+
+if (
+  markerDistance > MARKER_DISTANCE_THRESHOLD &&
+  Date.now() - lastMarkerUpdateTime.current > MARKER_UPDATE_INTERVAL &&
+  !isAnimating.current
+) {
+  if (markerDistance < 20) {
+    // For small movements, update instantly without animation
+    markerPosition.setValue({
+      latitude,
+      longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    });
+  } else {
+    // For larger movements, animate
+    isAnimating.current = true;
+    markerPosition
+      .timing({
+        latitude,
+        longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+        duration: 500,
+        useNativeDriver: false,
+      } as any)
+      .start(() => {
+        isAnimating.current = false;
+      });
+  }
+
+  lastMarkerCoords.current = { latitude, longitude };
+  lastMarkerUpdateTime.current = Date.now();
+}
+setUserRegion(newRegion); // Still keep this to move camera
 
     if (!cameraInitialized.current) {
       mapRef.current?.animateCamera({
@@ -369,7 +442,12 @@ setRouteSummary({ duration, distance, eta });
 
       if (distanceMoved > 10) {
         prevUserCoords.current = { latitude, longitude };
-        setUserHeading(position.coords.heading || 0);
+        const newHeading = position.coords.heading || 0;
+Animated.timing(userHeading, {
+  toValue: newHeading,
+  duration: 300,
+  useNativeDriver: false,
+}).start();
         mapRef.current?.animateCamera({
           center: newRegion,
           heading: position.coords.heading || 0,
@@ -386,15 +464,24 @@ setRouteSummary({ duration, distance, eta });
       const distance = getDistanceFromLatLonInKm(latitude, longitude, lat, lng) * 1000;
 
       // ✅ Re-routing logic
-      const distanceFromStep = getDistanceFromLatLonInKm(latitude, longitude, lat, lng) * 1000;
-      if (distanceFromStep > 50 && Date.now() - lastRerouteTime.current > 10000) {
-        console.log('🔁 User is off-route — rerouting...');
-        lastRerouteTime.current = Date.now();
-        showReroutingBanner(); // 👈 Add this line
+      const REROUTE_DISTANCE_THRESHOLD = 50; // meters
+const REROUTE_COOLDOWN = 10000; // ms
+
+const distanceFromStep = getDistanceFromLatLonInKm(latitude, longitude, lat, lng) * 1000;
+const isFarFromStep = distanceFromStep > REROUTE_DISTANCE_THRESHOLD;
+const isCooldownOver = Date.now() - lastRerouteTime.current > REROUTE_COOLDOWN;
+
+// Optional: prevent rerouting if we're on the final step already
+const isLastStep = currentStepIndex >= stepInstructions.length - 1;
+
+if (isFarFromStep && isCooldownOver && !isLastStep) {
+  console.log('🔁 User is off-route — rerouting...');
+  lastRerouteTime.current = Date.now();
+  showReroutingBanner();
   handleShowRoute();    
-        setCurrentStepIndex(0);
-        return;
-      }
+  setCurrentStepIndex(0);
+  return;
+}
 
       // 🔇 Avoid double-speaking
       if (
@@ -404,13 +491,22 @@ setRouteSummary({ duration, distance, eta });
         return;
       }
 
-      if (distance < 30) {
-        const instruction = currentStep.html_instructions.replace(/<[^>]*>?/gm, '');
-        Tts.speak(instruction);
-        lastInstructionTime.current = Date.now();
-        prevIndexRef.current = currentStepIndex;
-        setCurrentStepIndex(prev => prev + 1);
-      }
+      const STEP_REACHED_DISTANCE_THRESHOLD = 15; // tighten threshold (was 30)
+const INSTRUCTION_COOLDOWN = 15000; // prevent rapid TTS
+
+const hasRecentlySpoken = Date.now() - lastInstructionTime.current < INSTRUCTION_COOLDOWN;
+
+if (
+  distance < STEP_REACHED_DISTANCE_THRESHOLD &&
+  !hasRecentlySpoken &&
+  currentStepIndex !== prevIndexRef.current
+) {
+  const instruction = currentStep.html_instructions.replace(/<[^>]*>?/gm, '');
+  Tts.speak(instruction);
+  lastInstructionTime.current = Date.now();
+  prevIndexRef.current = currentStepIndex;
+  setCurrentStepIndex((prev) => prev + 1);
+}
 
       if (currentStepIndex >= stepInstructions.length) {
         Tts.speak("You have reached your destination.");
@@ -425,7 +521,7 @@ setRouteSummary({ duration, distance, eta });
   },
   {
     enableHighAccuracy: true,
-    distanceFilter: 10,
+    distanceFilter: 15,
     interval: 3000,
     fastestInterval: 2000,
     forceRequestLocation: true,
@@ -621,43 +717,56 @@ const handleZoomOut = () => {
       <Polyline coordinates={routeCoords} strokeWidth={5} strokeColor="#00BFFF" />
     )}
 
-    {userRegion && (
-      <Marker
-        coordinate={userRegion}
-        anchor={{ x: 0.5, y: 0.5 }}
-        rotation={userHeading}
-        flat={true}
-        zIndex={1000}
-      >
-        {isJourneyStarted ? (
-          <View style={{ transform: [{ rotate: `${userHeading}deg` }] }}>
-            <Icon name="navigation" size={30} color="#00ccff" />
-          </View>
-        ) : (
-          <View style={{ alignItems: 'center' }}>
-            <View
-              style={{
-                width: 16,
-                height: 16,
-                borderRadius: 8,
-                backgroundColor: '#00ccff',
-                borderWidth: 2,
-                borderColor: '#fff',
-              }}
-            />
-            <View
-              style={{
-                position: 'absolute',
-                width: 60,
-                height: 60,
-                borderRadius: 30,
-                backgroundColor: '#00ccff44',
-              }}
-            />
-          </View>
-        )}
-      </Marker>
-    )}
+    {userRegion && isJourneyStarted && (
+  <AnimatedMarker
+    coordinate={markerPosition as any}
+    anchor={{ x: 0.5, y: 0.5 }}
+    rotation={userHeading as any}
+    flat={true}
+    zIndex={1000}
+  >
+    <RNAnimated.View
+  style={{
+    transform: [
+      {
+        rotate: userHeading.interpolate({
+          inputRange: [0, 360],
+          outputRange: ['0deg', '360deg'],
+        }),
+      },
+    ],
+  }}
+>
+  <Icon name="navigation" size={30} color="#00ccff" />
+</RNAnimated.View>
+  </AnimatedMarker>
+)}
+
+{userRegion && !isJourneyStarted && (
+  <Marker coordinate={userRegion}>
+    <View style={{ alignItems: 'center' }}>
+      <View
+        style={{
+          width: 16,
+          height: 16,
+          borderRadius: 8,
+          backgroundColor: '#00ccff',
+          borderWidth: 2,
+          borderColor: '#fff',
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          width: 60,
+          height: 60,
+          borderRadius: 30,
+          backgroundColor: '#00ccff44',
+        }}
+      />
+    </View>
+  </Marker>
+)}
   </MapView>
 
   {/* 📍 Center-to-user-location button */}
@@ -676,7 +785,7 @@ const handleZoomOut = () => {
     mapRef.current.animateCamera(
       {
         center: userRegion,
-        heading: userHeading,
+        heading: (userHeading as any).__getValue?.() ?? 0,
         pitch: 60,
         zoom: currentZoom, // ✅ respect current zoom
       },
