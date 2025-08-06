@@ -41,8 +41,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   vertical: {
-    width: 30,
-    height: 70,
+    width: 40,
+    height: 80,
     justifyContent: 'space-between',
     alignItems: 'center',
     flexDirection: 'column',
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   },
   barVertical: {
     width: '100%',
-    height: 9,
+    height: 14,
   },
   barHorizontal: {
     height: '100%',

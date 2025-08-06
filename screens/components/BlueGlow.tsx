@@ -13,7 +13,7 @@ const BlueGlow: React.FC<BlueGlowProps> = ({
 }) => {
   const { width, height } = useWindowDimensions();
 
-  const baseWidth = Math.min(width, height) * 0.55;
+  const baseWidth = Math.min(width, height) * 0.45;
   const baseHeight = baseWidth * 0.35;
 
   const centerX = width / 2;

@@ -28,7 +28,16 @@ const ExportDataScreen = () => {
     const intervalId: ReturnType<typeof setInterval> = setInterval(() => {
         if (!data?.rawFrame || !data?.messageMCU1) return; // ⬅️ Skip if no data
       const newData = {
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toLocaleString('en-IN', {
+  timeZone: 'Asia/Kolkata',       // or change to your target timezone
+  hour12: false,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit'
+}).replace(',', ''), // remove comma between date and time
         soc: messageDIU4.stateOfCharge?.toFixed(1) || 0,
         batteryCurrent: messageDIU2.batteryCurrent?.toFixed(1) || 0,
         minCellVoltage: messageDIU3.minCellVoltage?.toFixed(3) || 0,
@@ -88,7 +97,16 @@ const ExportDataScreen = () => {
 
   animateRotation();
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const timestamp = new Date().toLocaleString('en-IN', {
+  timeZone: 'Asia/Kolkata',
+  hour12: false,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit'
+}).replace(/[/:, ]/g, '-');
   const folderPath = `${RNFS.CachesDirectoryPath}/export_${timestamp}`;
   const csvPath = `${folderPath}/data.csv`;
   const trcPath = `${folderPath}/data.trc`;

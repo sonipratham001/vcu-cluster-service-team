@@ -18,6 +18,7 @@ import RedOuterBorder from '../components/DesignLines';
 import StatusIndicator from '../components/StatusIndicator';
 import ModeButton from '../components/ModeButton';
 import GlowingImage from '../components/GlowingImage';
+import { scale, verticalScale, fontScale } from '../../src/utils/scale';
 const {width, height} = Dimensions.get('window');
 
 interface VehicleDashboardUIProps {
@@ -138,7 +139,7 @@ useEffect(() => {
       colors={['#0a0f1c', '#1f2937', '#111827']}
       style={{flex: 1}}>
       <SafeAreaView style={{flex: 1}}>
-        <View style={styles.scrollContainer}>
+       <View style={{ flex: 1, justifyContent: 'space-between' }}>
           {/* <CurvedPartitionLines /> */}
           <RedOuterBorder />
           <BlueGlow glowColor={glowColor} glowIntensity={glowIntensity} />
@@ -173,21 +174,22 @@ useEffect(() => {
             
 
             {/* Headlights, Hazard, Low Beam */}
-            <View style={styles.topStatusRow}>
-              <Icon
-                name="car-light-high"
-                size={48}
-                color={headlightStatus?.high ? '#3b82f6' : '#1e293b'}
-                style={{ transform: [{ translateY: -height * 0.18 }, { translateX: -20 }] }}
-              />
-              <Icon
-                name="car-light-dimmed"
-                size={48}
-                color={headlightStatus?.low ? '#3b82f6' : '#1e293b'}
-                style={{ transform: [{ translateY: -height * 0.18 }, { translateX: 20 }] }}
-              />
-            </View>
-
+            <View style={{ position: 'absolute', top: 40, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-around' }}>
+  <View style={{ marginRight: 100 }}>
+    <Icon
+      name="car-light-high"
+      size={48}
+      color={headlightStatus?.high ? '#3b82f6' : '#1e293b'}
+    />
+  </View>
+  <View style={{ marginLeft: 100 }}>
+    <Icon
+      name="car-light-dimmed"
+      size={48}
+      color={headlightStatus?.low ? '#3b82f6' : '#1e293b'}
+    />
+  </View>
+</View>
             {/* Gear & Battery Info */}
             <View style={styles.cornerInfoRow}>
               <View style={styles.leftSide}>
@@ -203,15 +205,14 @@ useEffect(() => {
               </View>
             </View>
 
-            {/* Speed */}
-           
+<View style={styles.centerStack}>
+            {/* Speed */}   
   <View style={styles.speedContainer}>
     <Text style={styles.speedText}>{speed ?? '--'}</Text>
     <Text style={styles.kmph}>km/h</Text>
   </View>
 
-
-            {/* ECO & SPORTS Row */}
+   {/* ECO & SPORTS Row */}
             <View style={styles.modeRow}>
               <ModeButton
   active={mode === 'eco'}
@@ -227,57 +228,58 @@ useEffect(() => {
   defaultColor="#ef4444" // Tailwind red-500
 />
             </View>
-
-            {/* Range & Odometer Row */}
-            <View style={styles.metricsRow}>
-              <View style={styles.metricBoxLeft}>
-                <Icon name="map-marker-distance" size={36} color="#60a5fa" />
-                <View style={{alignItems: 'center'}}>
-                  <Text style={styles.metricText}>Range</Text>
-                  <Text style={styles.metricText}>{range ?? '--'} km</Text>
-                </View>
-              </View>
-
-              <View style={styles.metricBoxRight}>
-                <Icon name="speedometer" size={36} color="#60a5fa" />
-                <View style={{alignItems: 'center'}}>
-                  <Text style={styles.metricText}>Odo</Text>
-                  <Text style={styles.metricText}>
-                    {odometer ? odometer.toFixed(1) : '--'} km
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Vertical Status Column */}
-            <View style={styles.verticalStatusColumn}>
-  <View style={styles.statusIconBox}>
-    <Icon name="car-brake-parking" size={28} color="#f87171" />
-  </View>
-
-  <View style={styles.statusIconBox}>
-    <GlowingImage
-      source={require('../../assets/brake-pad-warning.png')}
-      glowColor="#f87171"
-      active={!!brakeStatus?.bf}
-      size={130}
-    />
-  </View>
-
-  <View style={styles.statusIconBox}>
-    <StatusIndicator
-      iconName="battery-charging-high"
-      status={batteryHasFault ? 'fault' : 'ok'}
-    />
-  </View>
-
-  <View style={styles.statusIconBox}>
-    <StatusIndicator
-      iconName="engine-outline"
-      status={motorHasFault ? 'fault' : 'ok'}
-    />
-  </View>
 </View>
+
+<View style={styles.rangeOdoRow}>
+{/* Range & Odometer Row */}
+  <View style={styles.metricBoxLeft}>
+    <Icon name="map-marker-distance" size={36} color="#60a5fa" />
+    <View style={{alignItems: 'center'}}>
+      <Text style={styles.metricText}>Range</Text>
+      <Text style={styles.metricText}>{range ?? '--'} km</Text>
+    </View>
+  </View>
+  <View style={styles.metricBoxRight}>
+    <Icon name="speedometer" size={36} color="#60a5fa" />
+    <View style={{alignItems: 'center'}}>
+      <Text style={styles.metricText}>Odo</Text>
+      <Text style={styles.metricText}>
+        {odometer ? odometer.toFixed(1) : '--'} km
+      </Text>
+    </View>
+  </View>
+  </View>
+
+<View style={styles.verticalStatusColumn}>
+    <View style={styles.statusIconBox}>
+      <Icon name="car-brake-parking" size={28} color="#f87171" />
+    </View>
+
+    <View style={styles.statusIconBox}>
+      <GlowingImage
+        source={require('../../assets/brake-pad-warning.png')}
+        glowColor="#f87171"
+        active={!!brakeStatus?.bf}
+        size={130}
+      />
+    </View>
+
+    <View style={styles.statusIconBox}>
+      <StatusIndicator
+        iconName="battery-charging-high"
+        status={batteryHasFault ? 'fault' : 'ok'}
+      />
+    </View>
+
+    <View style={styles.statusIconBox}>
+      <StatusIndicator
+        iconName="engine-outline"
+        status={motorHasFault ? 'fault' : 'ok'}
+      />
+    </View>
+  </View>
+           
+            
           </View>
         </View>
 
@@ -289,21 +291,23 @@ useEffect(() => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 2,
-    paddingBottom: 0,
-  },
+  flex: 1,
+  justifyContent: 'space-between',
+  paddingHorizontal: 16,
+  paddingBottom: verticalScale(40),
+},
   scrollContainer: {
     flex: 1,
     justifyContent: 'flex-start',
     paddingBottom: 0,
   },
   topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 2,
-    marginBottom: 8,
-    paddingHorizontal: 16,
-  },
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginTop: verticalScale(2),
+  marginBottom: verticalScale(8),
+  paddingHorizontal: scale(16),
+},
  timeContainer: {
   backgroundColor: 'rgba(255, 255, 255, 0.08)',
   paddingVertical: 0,
@@ -322,39 +326,51 @@ const styles = StyleSheet.create({
 },
 
 digitalTimeText: {
-  fontSize: 22,
+  fontSize: fontScale(22),
   fontWeight: 'bold',
   color: '#f1f5f9',
-  letterSpacing: 2,
+  letterSpacing: scale(2),
   fontVariant: ['tabular-nums'],
   textShadowColor: '#38bdf8',
   textShadowOffset: { width: 0, height: 0 },
-  textShadowRadius: 2,
+  textShadowRadius: scale(2),
 },
   topStatusRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingHorizontal: 144,
+    // paddingHorizontal: 14,
   },
-  cornerInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    paddingHorizontal: width * 0.1,
-    marginTop: height * 0.02,
-  },
+  bottomRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'flex-end',
+  paddingHorizontal: scale(16),
+  marginBottom: verticalScale(202), // sits just above the bottom nav
+},
+ cornerInfoRow: {
+  position: 'absolute',
+  top: height * 0.32, // just below logo — tweak as needed
+  left: 0,
+  right: 0,
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  paddingHorizontal: width * 0.12, // adjust spacing from screen edge
+  zIndex: 4,
+},
 
   leftSide: {
-    alignItems: 'flex-start',
-    transform: [{translateY: -50}, {translateX: 20}],
-  },
+  alignItems: 'flex-start',
+  marginTop: 0,
+  marginLeft: 16,
+},
 
   rightSide: {
-    alignItems: 'flex-end',
-    transform: [{translateY: -50}, {translateX: -20}],
-  },
+  alignItems: 'flex-end',
+  marginTop: 0,
+  marginRight: 16,
+},
   value: {
     fontSize: 14,
     color: '#fff',
@@ -363,32 +379,41 @@ digitalTimeText: {
   },
   speedContainer: {
     alignItems: 'center',
-    marginTop: -height * 0.41,
+    // marginTop: verticalScale(-height * 0.7),
   },
   speedText: {
-    fontSize: 68,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
+  fontSize: fontScale(68),
+  fontWeight: 'bold',
+  color: '#fff',
+},
   kmph: {
     fontSize: 18,
     color: '#ccc',
   },
-  modeRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: width * 0.08,         // dynamic horizontal gap
-  marginTop: -height * 0.03, // slight upward shift
-  marginBottom: height * 0.07,
-  },
+ modeRow: {
+  flexDirection: 'row',
+  justifyContent: 'center',
+  alignItems: 'center',
+  gap: 12,         // Optional: adds spacing between ECO and SPORTS
+   marginTop: verticalScale(4),
+  marginBottom: verticalScale(4),
+},
   modeBlock: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  statusIconBox: {
-  height: 40,     // Set equal or greater than the largest icon
-  width: 40,
+  centerStack: {
+  position: 'absolute',
+  top: height * 0.34, // ⬅️ You can try 0.25, 0.26 etc. to adjust height
+  left: 0,
+  right: 0,
+  alignItems: 'center',
+  zIndex: 3,
+},
+ statusIconBox: {
+  height: 32,
+  width: 32,
   justifyContent: 'center',
   alignItems: 'center',
 },
@@ -397,47 +422,58 @@ digitalTimeText: {
     fontWeight: 'bold',
     fontSize: 12,
   },
+  rangeOdoRow: {
+  position: 'absolute',
+    bottom: height * 0.16, // just above bottom nav bar
+  left: 0,
+  right: 0,
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  paddingHorizontal: scale(28),
+  zIndex: 5,
+},
   activeEcoText: {
     color: '#10b981',
   },
   activeSportText: {
     color: '#f43f5e',
   },
-  metricsRow: {
-    position: 'absolute',
-    bottom: 38, 
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: -60,
-  },
+ bottomInfoRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  paddingHorizontal: 20,
+  marginTop: 8,
+  marginBottom: 8, // space above BottomNavBar
+},
   metricBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  metricBoxLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-      transform: [{translateX: -width * 0.15}], 
-  },
+metricBoxLeft: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
+},
 
-  metricBoxRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    transform: [{ translateX: width * 0.13 }],
-  },
+metricBoxRight: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
+},
   metricText: {
     fontSize: 18,
     color: '#e5e7eb',
   },
-  verticalStatusColumn: {
+verticalStatusColumn: {
   position: 'absolute',
-  right: width * 0.02,
-  top: height * 0.20,
-  justifyContent: 'space-between',
-  alignItems: 'center',   // 👈 this is critical
-  height: height * 0.18,
+  right: scale(0),
+  top: height * 0.2,
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 6,
+  zIndex: 10,
 },
   iconBox: {
     borderWidth: 1,
@@ -457,12 +493,12 @@ digitalTimeText: {
     height: 60,
   },
   logoWithStatusRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-around',
+  position: 'absolute',
+  top: height * 0.14, // adjust as needed (try 0.13, 0.15)
+  left: 0,
+  right: 0,
   alignItems: 'center',
-  marginTop: -18,
-  paddingHorizontal: 24,
-  zIndex: 2,
+  zIndex: 4,
 },
 });
 

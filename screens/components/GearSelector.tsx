@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   gearBox: {
-    width: 28,
+    width: 38,
     height: 30,
     borderRadius: 6,
     justifyContent: 'center',

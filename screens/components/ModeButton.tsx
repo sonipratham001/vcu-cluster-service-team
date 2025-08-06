@@ -43,10 +43,10 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 20,
-    marginHorizontal: 6,
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 32,
+    marginHorizontal: 8,
     borderWidth: 1.5,
     borderColor: '#cbd5e1', // Always silver
   },
